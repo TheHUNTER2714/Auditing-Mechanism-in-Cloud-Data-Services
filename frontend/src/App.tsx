@@ -1,8 +1,9 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Navbar } from './components/Navbar';
-import { Footer } from './components/Footer';
-import { HomePage } from './pages/HomePage';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppLayout } from './components/AppLayout';
+import { LandingPage } from './pages/LandingPage';
+import { OverviewPage } from './pages/OverviewPage';
+import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { UploadPage } from './pages/UploadPage';
 import { FilesPage } from './pages/FilesPage';
@@ -18,26 +19,30 @@ import { AuditsPage } from './pages/AuditsPage';
 export function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen flex flex-col bg-[#050816] text-[#F1F5F9]">
-        <Navbar />
-        <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/upload" element={<UploadPage />} />
-            <Route path="/files" element={<FilesPage />} />
-            <Route path="/files/:id" element={<FileDetailPage />} />
-            <Route path="/files/:id/edit" element={<DynamicEditPage />} />
-            <Route path="/tpa" element={<TPAConsolePage />} />
-            <Route path="/ledger" element={<LedgerPage />} />
-            <Route path="/benchmarks" element={<BenchmarkPage />} />
-            <Route path="/alerts" element={<AlertsPage />} />
-            <Route path="/batch-audit" element={<BatchAuditPage />} />
-            <Route path="/audits" element={<AuditsPage />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
+      <Routes>
+        {/* Public Website Routes (Cinematic & Academic) */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/overview" element={<OverviewPage />} />
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* Dedicated Application Routes (Wrapped in AppLayout with Sidebar & Topbar) */}
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/files" element={<FilesPage />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/files/:id" element={<FileDetailPage />} />
+          <Route path="/files/:id/edit" element={<DynamicEditPage />} />
+          <Route path="/audits" element={<AuditsPage />} />
+          <Route path="/tpa" element={<TPAConsolePage />} />
+          <Route path="/ledger" element={<LedgerPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/batch-audit" element={<BatchAuditPage />} />
+          <Route path="/benchmarks" element={<BenchmarkPage />} />
+        </Route>
+
+        {/* Fallback to Home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }
