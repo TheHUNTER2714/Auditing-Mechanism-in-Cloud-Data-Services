@@ -1,0 +1,154 @@
+{
+  "telemetry": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+    "architecture": "64bit",
+    "python_version": "3.14.5",
+    "cpu_count": 12
+  },
+  "size_benchmarks": [
+    {
+      "file_size_mb": 1,
+      "block_count": 16,
+      "sampled_blocks_c": 16,
+      "sha256_ms_mean": 1.08,
+      "full_chain_ms_mean": 1.088,
+      "spotcheck_ms_mean": 2.883
+    },
+    {
+      "file_size_mb": 5,
+      "block_count": 80,
+      "sampled_blocks_c": 80,
+      "sha256_ms_mean": 5.496,
+      "full_chain_ms_mean": 5.422,
+      "spotcheck_ms_mean": 15.484
+    },
+    {
+      "file_size_mb": 10,
+      "block_count": 160,
+      "sampled_blocks_c": 160,
+      "sha256_ms_mean": 10.813,
+      "full_chain_ms_mean": 10.85,
+      "spotcheck_ms_mean": 30.442
+    },
+    {
+      "file_size_mb": 25,
+      "block_count": 400,
+      "sampled_blocks_c": 400,
+      "sha256_ms_mean": 27.007,
+      "full_chain_ms_mean": 27.09,
+      "spotcheck_ms_mean": 85.775
+    },
+    {
+      "file_size_mb": 50,
+      "block_count": 800,
+      "sampled_blocks_c": 460,
+      "sha256_ms_mean": 54.262,
+      "full_chain_ms_mean": 54.076,
+      "spotcheck_ms_mean": 87.536
+    }
+  ],
+  "version_benchmarks": [
+    {
+      "version_count": 1,
+      "verification_time_ms": 0.014
+    },
+    {
+      "version_count": 10,
+      "verification_time_ms": 0.069
+    },
+    {
+      "version_count": 50,
+      "verification_time_ms": 0.377
+    },
+    {
+      "version_count": 100,
+      "verification_time_ms": 0.645
+    },
+    {
+      "version_count": 250,
+      "verification_time_ms": 1.672
+    }
+  ],
+  "update_benchmarks": {
+    "file_size_mb": 10,
+    "full_rebuild_ms": 24.64,
+    "full_bytes_touched": 10485760,
+    "dynamic_update_ms": 12.49,
+    "dynamic_bytes_touched": 65536,
+    "speedup_ratio": 1.97
+  },
+  "detection_benchmarks": [
+    {
+      "corruption_rate": "1%",
+      "corrupted_blocks_k": 2,
+      "sample_size_c": 10,
+      "theoretical_prob": 9.77,
+      "empirical_prob": 8.8
+    },
+    {
+      "corruption_rate": "1%",
+      "corrupted_blocks_k": 2,
+      "sample_size_c": 20,
+      "theoretical_prob": 19.05,
+      "empirical_prob": 18.4
+    },
+    {
+      "corruption_rate": "1%",
+      "corrupted_blocks_k": 2,
+      "sample_size_c": 40,
+      "theoretical_prob": 36.08,
+      "empirical_prob": 38.8
+    },
+    {
+      "corruption_rate": "1%",
+      "corrupted_blocks_k": 2,
+      "sample_size_c": 60,
+      "theoretical_prob": 51.11,
+      "empirical_prob": 56.0
+    },
+    {
+      "corruption_rate": "1%",
+      "corrupted_blocks_k": 2,
+      "sample_size_c": 90,
+      "theoretical_prob": 69.87,
+      "empirical_prob": 73.4
+    },
+    {
+      "corruption_rate": "5%",
+      "corrupted_blocks_k": 10,
+      "sample_size_c": 10,
+      "theoretical_prob": 40.85,
+      "empirical_prob": 38.0
+    },
+    {
+      "corruption_rate": "5%",
+      "corrupted_blocks_k": 10,
+      "sample_size_c": 20,
+      "theoretical_prob": 66.02,
+      "empirical_prob": 65.6
+    },
+    {
+      "corruption_rate": "5%",
+      "corrupted_blocks_k": 10,
+      "sample_size_c": 40,
+      "theoretical_prob": 89.87,
+      "empirical_prob": 89.6
+    },
+    {
+      "corruption_rate": "5%",
+      "corrupted_blocks_k": 10,
+      "sample_size_c": 60,
+      "theoretical_prob": 97.44,
+      "empirical_prob": 96.6
+    },
+    {
+      "corruption_rate": "5%",
+      "corrupted_blocks_k": 10,
+      "sample_size_c": 90,
+      "theoretical_prob": 99.79,
+      "empirical_prob": 99.8
+    }
+  ],
+  "generated_at": "2026-09-30T03:23:02Z"
+}

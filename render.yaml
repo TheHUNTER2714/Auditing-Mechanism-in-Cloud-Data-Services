@@ -1,0 +1,43 @@
+# Render Deployment Blueprint
+# Project: Auditing Mechanism in Cloud Data Services
+# Model: Version-Based Dynamic Cloud Data Auditing
+
+services:
+  # 1. Backend REST API Web Service
+  - type: web
+    name: auditing-mechanism-cloud-api
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && gunicorn --workers 2 --bind 0.0.0.0:$PORT 'app:create_app()'"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENABLE_DEMO_TAMPER
+        value: "true"
+      - key: CHAIN_SECRET
+        generateValue: true
+      - key: K_TAG
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+
+  # 2. Frontend Static Web UI (Vite + React)
+  - type: static
+    name: auditing-mechanism-cloud-ui
+    buildCommand: "cd frontend && npm install && npm run build"
+    staticPublishPath: "./frontend/dist"
+    pullRequestPreviewsEnabled: true
+    routes:
+      - type: rewrite
+        source: "/*"
+        destination: "/index.html"
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: auditing-mechanism-cloud-api
+          property: host
