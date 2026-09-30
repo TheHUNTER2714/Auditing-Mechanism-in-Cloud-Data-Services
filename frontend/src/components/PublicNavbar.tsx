@@ -34,6 +34,20 @@ export const PublicNavbar: React.FC = () => {
             Home
           </Link>
 
+          <a
+            href="/#about"
+            className="text-slate-400 hover:text-cyan-300 transition-colors hidden md:block"
+          >
+            About
+          </a>
+
+          <a
+            href="/#project-info"
+            className="text-slate-400 hover:text-cyan-300 transition-colors hidden md:block"
+          >
+            Project Info
+          </a>
+
           <Link
             to="/overview"
             className={`transition-colors ${

@@ -6,12 +6,26 @@ import {
   Shield, 
   Database, 
   Layers, 
-  Sparkles, 
   Play, 
+  RotateCcw,
   Server,
   Lock,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle,
+  GraduationCap,
+  UserCheck,
+  Users,
+  Compass,
+  FileText,
+  Cpu,
+  BookOpen,
+  Terminal,
+  ExternalLink,
+  ChevronRight,
+  Sparkles,
+  KeyRound,
+  FileCode2
 } from 'lucide-react';
 import { PublicNavbar } from '../components/PublicNavbar';
 import { IntroSequence } from '../components/IntroSequence';
@@ -19,26 +33,28 @@ import { DataCenterScene } from '../components/DataCenterScene';
 import { CloudBackground } from '../components/CloudBackground';
 
 export const LandingPage: React.FC = () => {
-  const [showIntro, setShowIntro] = useState(false);
+  // Logo intro starts first on page load, then cleanly resets/fades into landing page
+  const [showIntro, setShowIntro] = useState<boolean>(true);
 
   return (
     <div className="min-h-screen bg-[#02040A] text-[#F1F5F9] flex flex-col overflow-x-hidden">
       <PublicNavbar />
 
-      {/* Intro Sequence Overlay (Replayable) */}
+      {/* Intro Sequence Overlay (Starts first, can be reset/replayed anytime) */}
       <AnimatePresence>
         {showIntro && (
           <IntroSequence onComplete={() => setShowIntro(false)} />
         )}
       </AnimatePresence>
 
-      {/* Floating Replay Intro Trigger */}
+      {/* Floating Replay / Reset Intro Trigger */}
       <div className="fixed bottom-6 right-6 z-40">
         <button
           onClick={() => setShowIntro(true)}
-          className="flex items-center gap-2 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/30 px-4 py-2 text-xs font-mono text-slate-300 hover:text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.15)] backdrop-blur-md transition-all cursor-pointer"
+          className="flex items-center gap-2 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/40 px-4 py-2.5 text-xs font-mono text-slate-200 hover:text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)] backdrop-blur-md transition-all cursor-pointer hover:scale-105"
+          title="Reset and replay the introductory logo sequence"
         >
-          <Play className="h-3 w-3 text-cyan-400" />
+          <RotateCcw className="h-3.5 w-3.5 text-cyan-400" />
           <span>Replay Logo Intro</span>
         </button>
       </div>
@@ -133,6 +149,12 @@ export const LandingPage: React.FC = () => {
               <Server className="h-3.5 w-3.5 text-slate-950" />
               <span>Open Dashboard</span>
             </Link>
+            <a
+              href="#about"
+              className="rounded-full bg-slate-900/90 border border-slate-700 hover:border-cyan-400/50 text-slate-300 hover:text-white px-6 py-3.5 text-xs uppercase tracking-wider font-mono transition-all backdrop-blur-md"
+            >
+              About Project ↓
+            </a>
           </motion.div>
         </div>
 
@@ -146,7 +168,7 @@ export const LandingPage: React.FC = () => {
       {/* ========================================================
           2. SHORT EXPLANATION & ARCHITECTURAL SUMMARY
           ======================================================== */}
-      <CloudBackground className="py-24 px-6 md:px-12 border-t border-slate-800/80">
+      <CloudBackground id="foundations" className="py-24 px-6 md:px-12 border-t border-slate-800/80">
         <div className="max-w-6xl mx-auto space-y-16">
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <span className="text-xs uppercase tracking-[0.25em] text-cyan-400 font-mono font-semibold">
@@ -214,37 +236,355 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Quick Call to Action Strip */}
-          <div className="p-8 rounded-3xl bg-gradient-to-r from-cyan-950/40 via-blue-950/30 to-indigo-950/40 border border-cyan-500/30 flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,211,238,0.1)]">
-            <div>
-              <h4 className="font-serif text-xl text-white font-medium mb-1">
-                Read the Complete Research Paper Specifications
-              </h4>
-              <p className="text-xs text-slate-400 font-light">
-                Explore the problem statement, cryptographic formulations, system architecture, and honest limitations.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link
-                to="/overview"
-                className="px-6 py-2.5 rounded-full bg-cyan-400 text-slate-950 text-xs font-semibold uppercase tracking-wider hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(34,211,238,0.25)]"
-              >
-                Project Overview
-              </Link>
-              <Link
-                to="/login"
-                className="px-6 py-2.5 rounded-full bg-slate-900 border border-slate-700 text-white text-xs font-semibold uppercase tracking-wider hover:bg-slate-800 transition-all"
-              >
-                Sign In
-              </Link>
-            </div>
-          </div>
         </div>
       </CloudBackground>
 
       {/* ========================================================
-          3. MINIMAL PUBLIC FOOTER
+          3. ABOUT THE PROJECT SECTION (RESEARCH & METHODOLOGY)
+          ======================================================== */}
+      <section id="about" className="py-24 px-6 md:px-12 bg-[#02050E] border-t border-slate-800/80 relative">
+        <div className="max-w-6xl mx-auto space-y-16">
+          {/* Section Header */}
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full bg-cyan-950/60 border border-cyan-400/40 px-3.5 py-1 text-xs font-mono text-cyan-300">
+              <BookOpen className="h-3.5 w-3.5 text-cyan-400" />
+              <span>RESEARCH PAPER SYNOPSIS & MOTIVATION</span>
+            </div>
+            <h2 className="font-serif text-3xl sm:text-5xl font-light text-white tracking-tight leading-tight">
+              About the Project: Dynamic Cloud Data Auditing
+            </h2>
+            <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-light max-w-3xl">
+              Addressing the fundamental trust boundaries of third-party cloud data outsourcing through continuous cryptographic verification, dynamic version tracking, and deterministic attack forensics.
+            </p>
+          </div>
+
+          {/* Deep Narrative Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* The Core Cloud Storage Dilemma */}
+            <div className="glass-panel p-8 rounded-3xl border-slate-800/80 space-y-4">
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 w-fit">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <h3 className="font-serif text-xl font-semibold text-white">
+                The Cloud Storage Trust Problem
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-light">
+                When enterprise data is outsourced to multi-tenant cloud data services, data owners surrender physical custody of the underlying storage media. Organizations face three pervasive security risks:
+              </p>
+              <ul className="space-y-2 text-xs text-slate-400 font-light">
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-400 font-bold">•</span>
+                  <span><strong>Silent Bit Rot:</strong> Physical drive degradation that storage controllers silently fail to recover.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-400 font-bold">•</span>
+                  <span><strong>Unauthorized Overwriting:</strong> Malicious or accidental in-place modifications bypassing access controls.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-400 font-bold">•</span>
+                  <span><strong>Silent Rollback Attacks:</strong> Rogue cloud servers restoring stale versions to conceal data loss or breach events.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Why Legacy Schemes Fail */}
+            <div className="glass-panel p-8 rounded-3xl border-slate-800/80 space-y-4">
+              <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 w-fit">
+                <Lock className="h-6 w-6" />
+              </div>
+              <h3 className="font-serif text-xl font-semibold text-white">
+                Limitations of Static Auditing
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-light">
+                Pioneering protocols like Provable Data Possession (PDP) and Proof of Retrievability (PoR) were designed almost exclusively for <strong>static, read-only archives</strong>.
+              </p>
+              <p className="text-xs text-slate-400 leading-relaxed font-light">
+                When applied to modern dynamic cloud data services where files undergo continuous revisions, block insertions, and append operations, traditional static schemes either require prohibitive re-computation costs (re-tagging all blocks) or remain vulnerable to replay and snapshot rollbacks.
+              </p>
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] font-mono text-rose-300">
+                Static PDP/PoR ↛ Dynamic Re-upload Security
+              </div>
+            </div>
+
+            {/* The V-DCA Paradigm */}
+            <div className="glass-panel p-8 rounded-3xl border-cyan-500/30 space-y-4 shadow-[0_0_25px_rgba(34,211,238,0.1)]">
+              <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 w-fit">
+                <Shield className="h-6 w-6" />
+              </div>
+              <h3 className="font-serif text-xl font-semibold text-white">
+                The Proposed V-DCA Solution
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-light">
+                The <strong>Version-Based Dynamic Cloud Data Auditing</strong> protocol establishes mathematical accountability over simulated cloud data services without heavy bilinear pairing overhead.
+              </p>
+              <p className="text-xs text-slate-400 leading-relaxed font-light">
+                By chaining HMAC-SHA256 signatures with fixed UTC ISO timestamps, unexposed server secrets, and client-held verification receipts, V-DCA achieves lightweight, non-interactive verification with sub-second execution speeds.
+              </p>
+              <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-400/30 text-[11px] font-mono text-cyan-300">
+                Deterministic Dual-Layer Auditing Architecture
+              </div>
+            </div>
+          </div>
+
+          {/* Operational Workflow Card */}
+          <div className="glass-panel p-8 sm:p-10 rounded-3xl border-slate-800/80 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+              <div>
+                <span className="text-xs font-mono uppercase tracking-widest text-cyan-400 font-semibold">
+                  AUDITING METHODOLOGY & PROTOCOL PHASES
+                </span>
+                <h3 className="font-serif text-2xl text-white font-medium mt-1">
+                  How the Verification Engine Operates
+                </h3>
+              </div>
+              <Link
+                to="/overview"
+                className="inline-flex items-center gap-2 text-xs font-mono text-cyan-300 hover:text-cyan-200 transition-colors w-fit"
+              >
+                <span>View Mathematical Formulations</span>
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+              <div className="space-y-2 p-4 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                <div className="font-mono text-cyan-400 font-semibold flex items-center gap-1.5">
+                  <span className="h-5 w-5 rounded-full bg-cyan-500/20 flex items-center justify-center text-[10px]">1</span>
+                  <span>Ingestion ($V_1$)</span>
+                </div>
+                <p className="text-slate-400 font-light leading-relaxed">
+                  Streams 1 MB chunks to derive D₁ = SHA-256(file bytes) and initializes genesis signature HC₀ = HMAC(K_chain, &quot;genesis|&quot; + file_id).
+                </p>
+              </div>
+
+              <div className="space-y-2 p-4 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                <div className="font-mono text-blue-400 font-semibold flex items-center gap-1.5">
+                  <span className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center text-[10px]">2</span>
+                  <span>Dynamic Update</span>
+                </div>
+                <p className="text-slate-400 font-light leading-relaxed">
+                  Calculates D_(n+1) and binds HC_(n+1) = HMAC(K_chain, file_id | v | D_(n+1) | HC_n | UTC), appending to the SQLite version vector.
+                </p>
+              </div>
+
+              <div className="space-y-2 p-4 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                <div className="font-mono text-indigo-400 font-semibold flex items-center gap-1.5">
+                  <span className="h-5 w-5 rounded-full bg-indigo-500/20 flex items-center justify-center text-[10px]">3</span>
+                  <span>Receipt Issuance</span>
+                </div>
+                <p className="text-slate-400 font-light leading-relaxed">
+                  Client receives and pins an unforgeable cryptographic receipt in browser storage, guaranteeing evidence against future rollback attempts.
+                </p>
+              </div>
+
+              <div className="space-y-2 p-4 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                <div className="font-mono text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <span className="h-5 w-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px]">4</span>
+                  <span>Precedence Audit</span>
+                </div>
+                <p className="text-slate-400 font-light leading-relaxed">
+                  Verifies database chain continuity first (V₁ ... V_n). Then streams active disk payload to confirm physical bits match D_latest.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================
+          4. PROJECT INFO & ACADEMIC CREDENTIALS SECTION
+          ======================================================== */}
+      <section id="project-info" className="py-24 px-6 md:px-12 bg-[#010309] border-t border-slate-800/80 relative">
+        <div className="max-w-6xl mx-auto space-y-16">
+          {/* Section Header */}
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full bg-blue-950/60 border border-blue-400/40 px-3.5 py-1 text-xs font-mono text-blue-300">
+              <GraduationCap className="h-3.5 w-3.5 text-blue-400" />
+              <span>PROJECT INFO & ACADEMIC GOVERNANCE</span>
+            </div>
+            <h2 className="font-serif text-3xl sm:text-5xl font-light text-white tracking-tight leading-tight">
+              Project Information & Academic Metadata
+            </h2>
+            <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-light max-w-3xl">
+              Official institutional credentials, academic investigators, supervisor attributions, and technical implementation specifications for the B.Tech Major Capstone Project.
+            </p>
+          </div>
+
+          {/* Official Problem Statement Box (Exact Required String) */}
+          <div className="glass-panel p-8 sm:p-10 rounded-3xl border-cyan-500/40 space-y-4 shadow-[0_0_35px_rgba(34,211,238,0.12)]">
+            <div className="flex items-center gap-2 text-xs font-mono text-cyan-400 uppercase tracking-widest font-semibold">
+              <Compass className="h-4 w-4" />
+              <span>Official Research Problem Statement</span>
+            </div>
+            <blockquote className="border-l-4 border-cyan-400 pl-6 py-2 text-2xl sm:text-3xl font-serif italic text-white leading-snug">
+              "To Propose A Novel Auditing Mechanism In Cloud Data Services."
+            </blockquote>
+            <p className="text-xs sm:text-sm text-slate-300 font-light leading-relaxed pt-2">
+              Formulated to address the urgent requirement for high-throughput, lightweight, and tamper-resilient integrity auditing in modern outsourced cloud data storage systems.
+            </p>
+          </div>
+
+          {/* Academic & Investigator Metadata Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Card 1: Project Identity */}
+            <div className="glass-panel p-6 rounded-2xl border-slate-800/80 space-y-4">
+              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 w-fit">
+                <FileCode2 className="h-5 w-5" />
+              </div>
+              <h3 className="font-serif text-base font-semibold text-white">Project Identity</h3>
+              <div className="space-y-2 text-xs font-mono text-slate-300">
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">Title:</span>
+                  <span className="text-white font-medium">Auditing Mechanism in Cloud Data Services</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">Model Name:</span>
+                  <span className="text-cyan-400">Version-Based Dynamic Cloud Data Auditing</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">Classification:</span>
+                  <span>Major B.Tech Capstone Project</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Academic Institution */}
+            <div className="glass-panel p-6 rounded-2xl border-slate-800/80 space-y-4">
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 w-fit">
+                <GraduationCap className="h-5 w-5" />
+              </div>
+              <h3 className="font-serif text-base font-semibold text-white">Academic Institution</h3>
+              <div className="space-y-2 text-xs font-mono text-slate-300">
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">College:</span>
+                  <span className="text-white leading-tight block">REC Pratapgarh</span>
+                  <span className="text-[10px] text-slate-400">Bharat Ratna Babasaheb Bhimrao Ambedkar REC</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">Department:</span>
+                  <span className="text-blue-300">Computer Science & Engineering</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">Academic Year:</span>
+                  <span>Class of 2026</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Project Mentorship */}
+            <div className="glass-panel p-6 rounded-2xl border-slate-800/80 space-y-4">
+              <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 w-fit">
+                <UserCheck className="h-5 w-5" />
+              </div>
+              <h3 className="font-serif text-base font-semibold text-white">Supervisor / Guide</h3>
+              <div className="space-y-2 text-xs font-mono text-slate-300">
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">Faculty Mentor:</span>
+                  <span className="text-white font-medium text-sm">Dr. Ashish Kumar Mishra</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">Department:</span>
+                  <span>Computer Science & Engineering</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase">Research Domain:</span>
+                  <span className="text-indigo-300">Cloud Data Security & Integrity Auditing</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Student Investigators */}
+            <div className="glass-panel p-6 rounded-2xl border-slate-800/80 space-y-4">
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 w-fit">
+                <Users className="h-5 w-5" />
+              </div>
+              <h3 className="font-serif text-base font-semibold text-white">Student Investigators</h3>
+              <div className="space-y-3 text-xs font-mono text-slate-300">
+                <div className="border-b border-slate-800/80 pb-2">
+                  <div className="text-white font-medium">Ayush Agnihotri</div>
+                  <div className="text-slate-400 text-[11px]">Roll No: 2312160100022</div>
+                  <div className="text-[10px] text-emerald-400">Core Engine & UI Architecture</div>
+                </div>
+                <div>
+                  <div className="text-white font-medium">Vivek Kushwaha</div>
+                  <div className="text-slate-400 text-[11px]">Roll No: 2312160100071</div>
+                  <div className="text-[10px] text-emerald-400">Storage & Forensic Ledger</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Technical Implementation Stack Pill Grid */}
+          <div className="p-8 rounded-3xl bg-slate-950/60 border border-slate-800/80 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-mono uppercase tracking-widest text-cyan-400 font-semibold">
+                  SYSTEM IMPLEMENTATION SPECIFICATIONS
+                </span>
+                <h4 className="font-serif text-xl text-white font-medium mt-1">
+                  Engineered for Performance & Mathematical Soundness
+                </h4>
+              </div>
+              <div className="text-xs font-mono text-slate-400">
+                13 Automated Pytest Verifications • Zero Pairing Setup
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="text-[10px] font-mono text-slate-400 uppercase">Backend</div>
+                <div className="text-xs font-semibold text-white mt-1">Python 3.11+ / Flask</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="text-[10px] font-mono text-slate-400 uppercase">Database</div>
+                <div className="text-xs font-semibold text-cyan-300 mt-1">SQLite (WAL Mode)</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="text-[10px] font-mono text-slate-400 uppercase">Frontend</div>
+                <div className="text-xs font-semibold text-white mt-1">React 18 / Vite / TS</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="text-[10px] font-mono text-slate-400 uppercase">Styling</div>
+                <div className="text-xs font-semibold text-blue-300 mt-1">Tailwind CSS v4</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="text-[10px] font-mono text-slate-400 uppercase">Crypto Primitive</div>
+                <div className="text-xs font-semibold text-emerald-300 mt-1">HMAC-SHA256</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="text-[10px] font-mono text-slate-400 uppercase">Stream Buffer</div>
+                <div className="text-xs font-semibold text-white mt-1">1 MB Chunk Hashing</div>
+              </div>
+            </div>
+
+            {/* Quick Action Hub */}
+            <div className="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4">
+              <div className="text-xs text-slate-400 font-light">
+                Ready to review the mathematical formulations, protocol security proofs, and live audit demonstrations?
+              </div>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/overview"
+                  className="px-6 py-2.5 rounded-full bg-cyan-400 text-slate-950 text-xs font-semibold uppercase tracking-wider hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(34,211,238,0.25)] flex items-center gap-1.5"
+                >
+                  <span>Project Overview</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <Link
+                  to="/login"
+                  className="px-6 py-2.5 rounded-full bg-slate-900 border border-slate-700 text-white text-xs font-semibold uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center gap-1.5"
+                >
+                  <Server className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>Launch Console</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================
+          5. MINIMAL PUBLIC FOOTER
           ======================================================== */}
       <footer className="py-12 px-6 bg-[#010206] border-t border-slate-800/80 text-center text-xs font-mono text-slate-500 space-y-3">
         <div className="text-slate-400 uppercase tracking-widest text-[11px]">
@@ -255,6 +595,9 @@ export const LandingPage: React.FC = () => {
         </div>
         <div className="text-slate-600 text-[10px]">
           Supervised by Dr. Ashish Kumar Mishra • Bharat Ratna Babasaheb Bhimrao Ambedkar Rajkiya Engineering College, Pratapgarh
+        </div>
+        <div className="pt-2 text-slate-600 text-[10px]">
+          Investigators: Ayush Agnihotri (2312160100022) • Vivek Kushwaha (2312160100071)
         </div>
       </footer>
     </div>

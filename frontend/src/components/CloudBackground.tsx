@@ -5,15 +5,17 @@ export interface CloudBackgroundProps {
   children?: React.ReactNode;
   className?: string;
   showIsometricRacks?: boolean;
+  id?: string;
 }
 
 export const CloudBackground: React.FC<CloudBackgroundProps> = ({
   children,
   className = '',
   showIsometricRacks = true,
+  id,
 }) => {
   return (
-    <div className={`relative overflow-hidden bg-[#050816] ${className}`}>
+    <div id={id} className={`relative overflow-hidden bg-[#050816] ${className}`}>
       {/* 1. Deep Layered Ambient Gradient Blobs (Dribbble Cloud Data Service aesthetic) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         <motion.div

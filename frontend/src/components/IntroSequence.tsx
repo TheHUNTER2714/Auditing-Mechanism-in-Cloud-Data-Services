@@ -8,7 +8,14 @@ interface IntroSequenceProps {
 
 export const IntroSequence: React.FC<IntroSequenceProps> = ({ onComplete }) => {
   const [stage, setStage] = useState<number>(0);
-  const [skipped, setSkipped] = useState<boolean>(false);
+
+  const stageMessages = [
+    "INITIALIZING CRYPTOGRAPHIC AUDITING FABRIC...",
+    "STREAMING 1 MB CHUNK HASHES: SHA-256(BlockStream)",
+    "CONSTRUCTING DYNAMIC VERSION VECTOR: V1 → V2 → V3",
+    "ANCHORING HMAC-SHA256 SIGNATURE TO GENESIS ANCHOR",
+    "AUDITING MECHANISM IN CLOUD DATA SERVICES: READY"
+  ];
 
   useEffect(() => {
     // Check prefers-reduced-motion
@@ -41,29 +48,25 @@ export const IntroSequence: React.FC<IntroSequenceProps> = ({ onComplete }) => {
   }, [onComplete]);
 
   const handleSkip = () => {
-    setSkipped(true);
-    sessionStorage.setItem('bt032_intro_seen', 'true');
     onComplete();
   };
 
-  if (skipped) return null;
-
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.8, ease: 'easeInOut' }}
-        className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#030611] text-white overflow-hidden select-none"
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.7, ease: 'easeInOut' }}
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#02040A] text-white overflow-hidden select-none"
+    >
+      {/* Skip button always available */}
+      <button
+        onClick={handleSkip}
+        className="absolute top-6 right-6 z-20 flex items-center gap-1.5 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400/50 px-4 py-2 text-xs font-mono text-slate-300 hover:text-cyan-300 backdrop-blur-md transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer"
       >
-        {/* Skip button always available */}
-        <button
-          onClick={handleSkip}
-          className="absolute top-6 right-6 z-20 flex items-center gap-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 px-4 py-2 text-xs font-mono text-slate-300 hover:text-cyan-300 hover:border-cyan-400/50 backdrop-blur-md transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)]"
-        >
-          <span>Skip Intro</span>
-          <FastForward className="h-3.5 w-3.5" />
-        </button>
+        <span>Skip to Landing</span>
+        <FastForward className="h-3.5 w-3.5 text-cyan-400" />
+      </button>
 
         {/* Ambient background glow rings */}
         <div className="absolute w-[500px] h-[500px] rounded-full bg-cyan-500/10 blur-[130px] pointer-events-none" />
@@ -278,16 +281,20 @@ export const IntroSequence: React.FC<IntroSequenceProps> = ({ onComplete }) => {
           </motion.p>
         </div>
 
-        {/* Progress Timeline Indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-48 h-1 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-          <motion.div
-            className="h-full bg-gradient-to-r from-cyan-400 to-blue-500"
-            initial={{ width: '0%' }}
-            animate={{ width: '100%' }}
-            transition={{ duration: 5.6, ease: 'linear' }}
-          />
+        {/* Progress Timeline Indicator & Live Stage Status */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+          <div className="text-[10px] font-mono tracking-wider text-cyan-300/80 uppercase">
+            {stageMessages[stage] || stageMessages[stageMessages.length - 1]}
+          </div>
+          <div className="w-56 h-1 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+            <motion.div
+              className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500"
+              initial={{ width: '0%' }}
+              animate={{ width: '100%' }}
+              transition={{ duration: 5.6, ease: 'linear' }}
+            />
+          </div>
         </div>
       </motion.div>
-    </AnimatePresence>
   );
 };
