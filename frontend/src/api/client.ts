@@ -20,7 +20,14 @@ import type {
   ScheduleRecord,
 } from './types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+let envApiUrl = (import.meta.env.VITE_API_URL || '').trim();
+if (envApiUrl && !envApiUrl.startsWith('http://') && !envApiUrl.startsWith('https://')) {
+  envApiUrl = `https://${envApiUrl}`;
+}
+if (envApiUrl.endsWith('/')) {
+  envApiUrl = envApiUrl.slice(0, -1);
+}
+const API_BASE = envApiUrl || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('bt032_auth_token');

@@ -7,10 +7,11 @@ services:
   - type: web
     name: auditing-mechanism-cloud-api
     runtime: python
+    rootDir: backend
     region: oregon
     plan: free
-    buildCommand: "cd backend && pip install -r requirements.txt"
-    startCommand: "cd backend && gunicorn --workers 2 --bind 0.0.0.0:$PORT 'app:create_app()'"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn --workers 1 --threads 4 --bind 0.0.0.0:$PORT 'app:create_app()'"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -26,10 +27,12 @@ services:
         value: "*"
 
   # 2. Frontend Static Web UI (Vite + React)
-  - type: static
+  - type: web
     name: auditing-mechanism-cloud-ui
-    buildCommand: "cd frontend && npm install && npm run build"
-    staticPublishPath: "./frontend/dist"
+    runtime: static
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: "./dist"
     pullRequestPreviewsEnabled: true
     routes:
       - type: rewrite
@@ -41,3 +44,4 @@ services:
           type: web
           name: auditing-mechanism-cloud-api
           property: host
+
