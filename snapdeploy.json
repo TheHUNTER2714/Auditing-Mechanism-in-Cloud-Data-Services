@@ -3,21 +3,10 @@
   "projectTitle": "Auditing Mechanism in Cloud Data Services",
   "model": "Version-Based Dynamic Cloud Data Auditing",
   "version": "2.0.0",
-  "build": {
-    "buildCommand": "cd frontend && npm install && npm run build",
-    "outputDirectory": "frontend/dist"
-  },
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "https://auditing-mechanism-cloud-api.onrender.com/api/$1"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  "dockerfile": "Dockerfile",
+  "port": 5000,
+  "env": {
+    "ENABLE_DEMO_TAMPER": "true",
+    "PORT": "5000"
+  }
 }

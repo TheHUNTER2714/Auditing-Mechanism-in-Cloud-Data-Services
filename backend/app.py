@@ -102,8 +102,7 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
     # System & Config Endpoints
     # -------------------------------------------------------------
 
-    @app.route("/", methods=["GET"])
-    def root():
+    def get_system_info():
         return jsonify(
             {
                 "project_title": "Auditing Mechanism in Cloud Data Services",
@@ -123,6 +122,10 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
                 },
             }
         )
+
+    @app.route("/api", methods=["GET"])
+    def api_root():
+        return get_system_info()
 
     @app.route("/api/health", methods=["GET"])
     def health():
@@ -1683,16 +1686,22 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         finally:
             conn.close()
 
-    dist_dir = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+    dist_dir = Path(os.environ.get("FRONTEND_DIST_DIR", Path(__file__).resolve().parent.parent / "frontend" / "dist"))
     if dist_dir.exists():
         from flask import send_from_directory
 
         @app.route("/", defaults={"path": ""})
         @app.route("/<path:path>")
         def serve_frontend(path):
+            if path and (path.startswith("api/") or path == "api"):
+                return jsonify({"error": "NOT_FOUND", "message": f"Endpoint /{path} not found"}), 404
             if path and (dist_dir / path).exists():
                 return send_from_directory(dist_dir, path)
             return send_from_directory(dist_dir, "index.html")
+    else:
+        @app.route("/", methods=["GET"])
+        def root():
+            return get_system_info()
 
     return app
 

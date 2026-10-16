@@ -66,14 +66,30 @@ If you prefer to configure the services manually on Render instead of using the 
 
 ---
 
-## 2. Why SnapDeploy Had Issues & How to Use It (If Desired)
+## 2. Deploying on SnapDeploy (Now with Docker Container Support)
 
-- **Root Cause of SnapDeploy failure:** SnapDeploy is typically designed only for static HTML/JS frontend hosting or edge functions. It does **not** run persistent Python WSGI backend processes with SQLite databases and background daemon threads.
-- The repository's `snapdeploy.json` was set to proxy `/api/*` to `https://auditing-mechanism-cloud-api.onrender.com`. If the Render backend was not yet deployed and active, any request to SnapDeploy returned a network error or 502/404.
-- **To use SnapDeploy properly for frontend:**
-  1. First deploy the Python backend on **Render** (as shown in Step 1 above).
-  2. In SnapDeploy, set the Environment Variable `VITE_API_URL` to your Render backend URL (e.g. `https://auditing-mechanism-cloud-api.onrender.com`).
-  3. Deploy the frontend on SnapDeploy with Root Directory `frontend`, Build Command `npm install && npm run build`, and Output Directory `dist`.
+The repository now includes a production multi-stage [`Dockerfile`](file:///c:/Users/ayush/OneDrive/Desktop/research%20paper/bt032/Dockerfile) that bundles both the React frontend and Python backend into a single self-contained container.
+
+### Option A: Unified Container Deployment (Recommended on SnapDeploy)
+1. In your **SnapDeploy** dashboard, create a new deployment and connect repository:
+   `https://github.com/TheHUNTER2714/Auditing-Mechanism-in-Cloud-Data-Services`
+2. Select branch: **`main-2`**.
+3. SnapDeploy will detect the root [`Dockerfile`](file:///c:/Users/ayush/OneDrive/Desktop/research%20paper/bt032/Dockerfile) automatically.
+4. Set Port: `5000`.
+5. Environment Variables:
+   - `ENABLE_DEMO_TAMPER`: `true`
+   - `PORT`: `5000`
+6. Click **Deploy**. SnapDeploy will build the frontend into `dist`, start Gunicorn, and serve the full application on your custom domain or SnapDeploy URL.
+
+### Option B: Deploying Frontend Only on SnapDeploy (with Backend on Render)
+If you prefer running only the static frontend on SnapDeploy:
+1. Link repository with branch **`main-2`**.
+2. Set **Root Directory:** `frontend`.
+3. Set **Build Command:** `npm install && npm run build`.
+4. Set **Output Directory:** `dist`.
+5. Set Environment Variable:
+   - `VITE_API_URL`: Your Render backend URL (e.g. `https://auditing-mechanism-cloud-api.onrender.com`).
+6. Deploy.
 
 ---
 
