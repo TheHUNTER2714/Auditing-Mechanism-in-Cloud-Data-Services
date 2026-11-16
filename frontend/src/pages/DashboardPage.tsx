@@ -290,9 +290,9 @@ export const DashboardPage: React.FC = () => {
           <div className="glass-panel p-6 rounded-2xl border-slate-800 space-y-4">
             <h3 className="font-serif text-base font-semibold text-white flex items-center gap-2">
               <Database className="h-4 w-4 text-blue-400" />
-              Quick Application Shortcuts
+              Quick Application Shortcuts & Reports
             </h3>
-            <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
               <Link
                 to="/upload"
                 className="p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-400/40 text-slate-300 hover:text-white transition-all flex flex-col justify-between"
@@ -308,19 +308,36 @@ export const DashboardPage: React.FC = () => {
                 <span className="text-[10px] text-slate-400">Manage versions & edit</span>
               </Link>
               <Link
+                to="/settings"
+                className="p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-400/40 text-slate-300 hover:text-white transition-all flex flex-col justify-between"
+              >
+                <span className="text-purple-400 font-semibold">Account Settings</span>
+                <span className="text-[10px] text-slate-400">Profile & credentials</span>
+              </Link>
+              <Link
                 to="/tpa"
                 className="p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 hover:border-indigo-400/40 text-slate-300 hover:text-white transition-all flex flex-col justify-between"
               >
                 <span className="text-indigo-400 font-semibold">TPA Console</span>
                 <span className="text-[10px] text-slate-400">Spot-check verification</span>
               </Link>
-              <Link
-                to="/benchmarks"
+              <a
+                href={api.getReportPdfUrl()}
+                target="_blank"
+                rel="noreferrer"
                 className="p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-400/40 text-slate-300 hover:text-white transition-all flex flex-col justify-between"
               >
-                <span className="text-emerald-400 font-semibold">Benchmarks</span>
-                <span className="text-[10px] text-slate-400">Latency & detection curves</span>
-              </Link>
+                <span className="text-emerald-400 font-semibold">Export PDF Report</span>
+                <span className="text-[10px] text-slate-400">Download signed PDF</span>
+              </a>
+              <a
+                href={api.getReportCsvUrl()}
+                download
+                className="p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-400/40 text-slate-300 hover:text-white transition-all flex flex-col justify-between"
+              >
+                <span className="text-cyan-300 font-semibold">Export CSV Report</span>
+                <span className="text-[10px] text-slate-400">Download ledger CSV</span>
+              </a>
             </div>
           </div>
         </div>

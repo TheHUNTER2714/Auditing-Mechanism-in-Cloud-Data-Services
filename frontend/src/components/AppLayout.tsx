@@ -16,7 +16,9 @@ import {
   X,
   Server,
   User,
-  Shield
+  Shield,
+  Settings,
+  ShieldAlert
 } from 'lucide-react';
 import { api } from '../api/client';
 import { CloudBackground } from './CloudBackground';
@@ -64,6 +66,8 @@ export const AppLayout: React.FC = () => {
     { name: 'Security Alerts', path: '/alerts', icon: AlertTriangle, badge: alertCount },
     { name: 'Batch Audit', path: '/batch-audit', icon: Layers },
     { name: 'Benchmarks', path: '/benchmarks', icon: BarChart3 },
+    { name: 'Account Settings', path: '/settings', icon: Settings },
+    ...(role === 'ADMIN' ? [{ name: 'Admin Console', path: '/admin', icon: ShieldAlert }] : []),
   ];
 
   const roleLabel = role === 'OWNER' ? 'Data Owner' : role === 'TPA' ? 'Third-Party Auditor' : 'System Admin';

@@ -51,6 +51,19 @@ yarn-debug.log*
 yarn-error.log*
 frontend/dist/
 
+# Environment variables
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Media & temporary frames
+*.mp4
+frame_*.png
+
 # IDE & Editor files
 .vscode/
 .idea/

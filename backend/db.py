@@ -13,7 +13,11 @@ CREATE TABLE IF NOT EXISTS files (
     created_at TEXT NOT NULL,
     current_version INTEGER NOT NULL,
     stored_path TEXT NOT NULL,
-    is_deleted INTEGER NOT NULL DEFAULT 0
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    owner_id TEXT,
+    quarantined INTEGER NOT NULL DEFAULT 0,
+    deleted_at TEXT DEFAULT NULL,
+    is_demo INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS versions (
@@ -25,7 +29,7 @@ CREATE TABLE IF NOT EXISTS versions (
     chain_hash TEXT NOT NULL,
     size_bytes INTEGER NOT NULL,
     created_at TEXT NOT NULL,
-    activity TEXT NOT NULL, -- 'UPLOAD', 'AUTHORIZED_UPDATE', 'DYNAMIC_UPDATE', etc.
+    activity TEXT NOT NULL, -- 'UPLOAD', 'AUTHORIZED_UPDATE', 'DYNAMIC_UPDATE', 'DELETE'
     blob_path TEXT NOT NULL,
     merkle_root TEXT DEFAULT '',
     tag_root TEXT DEFAULT '',
@@ -37,18 +41,100 @@ CREATE TABLE IF NOT EXISTS audits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     file_id TEXT NOT NULL,
     kind TEXT NOT NULL,     -- 'AUDIT', 'VERIFY_CHAIN', 'SPOT_CHECK', 'BATCH'
-    status TEXT NOT NULL,   -- 'PASS', 'TAMPERED', 'VERSION_HISTORY_ALTERED'
+    status TEXT NOT NULL,   -- 'PASS', 'TAMPERED', 'VERSION_HISTORY_ALTERED', 'UNREACHABLE'
     details_json TEXT NOT NULL,
+    actor_type TEXT NOT NULL DEFAULT 'OWNER', -- 'OWNER', 'AUDITOR_SERVICE', 'SYSTEM', 'ADMIN'
+    actor_id TEXT NOT NULL DEFAULT '',
+    trigger TEXT NOT NULL DEFAULT 'MANUAL',   -- 'MANUAL', 'SCHEDULED'
     created_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    email TEXT UNIQUE,
+    username TEXT UNIQUE,
     pw_hash TEXT NOT NULL,
-    role TEXT NOT NULL,     -- 'OWNER', 'TPA', 'ADMIN'
+    role TEXT NOT NULL DEFAULT 'OWNER',     -- 'OWNER', 'ADMIN'
+    status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'ACTIVE', 'REJECTED', 'SUSPENDED'
+    email_verified INTEGER NOT NULL DEFAULT 0,
+    token_version INTEGER NOT NULL DEFAULT 1,
+    approved_by TEXT DEFAULT NULL,
+    approved_at TEXT DEFAULT NULL,
+    is_demo INTEGER NOT NULL DEFAULT 0,
     user_key BLOB NOT NULL, -- k_u (blinding key, never returned across API)
     created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS receipts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    owner_id TEXT NOT NULL,
+    chain_hash TEXT NOT NULL,
+    merkle_root TEXT NOT NULL DEFAULT '',
+    receipt_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS delegations (
+    id TEXT PRIMARY KEY,
+    file_id TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    interval_minutes INTEGER NOT NULL DEFAULT 60,
+    sample_size INTEGER NOT NULL DEFAULT 10,
+    receipt_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'REVOKED'
+    created_at TEXT NOT NULL,
+    revoked_at TEXT,
+    FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_type TEXT NOT NULL, -- 'OWNER', 'AUDITOR_SERVICE', 'SYSTEM', 'ADMIN'
+    actor_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    result TEXT NOT NULL,
+    details_json TEXT NOT NULL,
+    prev_hash TEXT NOT NULL,
+    entry_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS email_verifications (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS audit_jobs (
+    id TEXT PRIMARY KEY,
+    job_id TEXT UNIQUE NOT NULL,
+    file_id TEXT,
+    owner_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED'
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    error_message TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS blocks_meta (
@@ -99,7 +185,7 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE TABLE IF NOT EXISTS alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     severity TEXT NOT NULL, -- 'info', 'warning', 'critical'
-    kind TEXT NOT NULL,     -- 'TAMPERED', 'VERSION_HISTORY_ALTERED', 'LEDGER_ALTERED', 'DUPLICATE_FAKING_SUSPECTED', etc.
+    kind TEXT NOT NULL,     -- 'TAMPERED', 'VERSION_HISTORY_ALTERED', 'LEDGER_ALTERED', 'AUDIT_MISSED', etc.
     file_ref TEXT,
     message TEXT NOT NULL,
     created_at TEXT NOT NULL,
@@ -113,13 +199,21 @@ CREATE TABLE IF NOT EXISTS schedules (
     last_run TEXT,
     enabled INTEGER NOT NULL DEFAULT 1
 );
+"""
 
+INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_files_owner ON files(owner_id);
 CREATE INDEX IF NOT EXISTS idx_versions_file_ver ON versions(file_id, version);
 CREATE INDEX IF NOT EXISTS idx_audits_file_created ON audits(file_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_receipts_file_ver ON receipts(file_id, version);
+CREATE INDEX IF NOT EXISTS idx_delegations_file ON delegations(file_id, status);
+CREATE INDEX IF NOT EXISTS idx_audit_log_seq ON audit_log(seq);
 CREATE INDEX IF NOT EXISTS idx_block_tags_lookup ON block_tags(file_id, version, idx);
 CREATE INDEX IF NOT EXISTS idx_ledger_seq ON ledger(seq);
 CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at);
 CREATE INDEX IF NOT EXISTS idx_alerts_ack ON alerts(acknowledged, created_at);
+CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token_hash);
+CREATE INDEX IF NOT EXISTS idx_audit_jobs_status ON audit_jobs(status, created_at);
 """
 
 
@@ -135,19 +229,66 @@ def get_db(db_path: Optional[Path] = None) -> sqlite3.Connection:
 def _migrate_columns_if_needed(conn: sqlite3.Connection) -> None:
     """Apply non-destructive schema column additions to existing tables."""
     cursor = conn.cursor()
-    
+
+    def table_exists(tbl: str) -> bool:
+        r = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl,)).fetchone()
+        return bool(r)
+
     # Check versions table columns
-    v_cols = [row[1] for row in cursor.execute("PRAGMA table_info(versions)").fetchall()]
-    if "merkle_root" not in v_cols:
-        cursor.execute("ALTER TABLE versions ADD COLUMN merkle_root TEXT DEFAULT ''")
-    if "tag_root" not in v_cols:
-        cursor.execute("ALTER TABLE versions ADD COLUMN tag_root TEXT DEFAULT ''")
-        
+    if table_exists("versions"):
+        v_cols = [row[1] for row in cursor.execute("PRAGMA table_info(versions)").fetchall()]
+        if "merkle_root" not in v_cols:
+            cursor.execute("ALTER TABLE versions ADD COLUMN merkle_root TEXT DEFAULT ''")
+        if "tag_root" not in v_cols:
+            cursor.execute("ALTER TABLE versions ADD COLUMN tag_root TEXT DEFAULT ''")
+
     # Check files table columns
-    f_cols = [row[1] for row in cursor.execute("PRAGMA table_info(files)").fetchall()]
-    if "is_deleted" not in f_cols:
-        cursor.execute("ALTER TABLE files ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0")
-        
+    if table_exists("files"):
+        f_cols = [row[1] for row in cursor.execute("PRAGMA table_info(files)").fetchall()]
+        if "is_deleted" not in f_cols:
+            cursor.execute("ALTER TABLE files ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0")
+        if "owner_id" not in f_cols:
+            cursor.execute("ALTER TABLE files ADD COLUMN owner_id TEXT")
+        if "quarantined" not in f_cols:
+            cursor.execute("ALTER TABLE files ADD COLUMN quarantined INTEGER NOT NULL DEFAULT 0")
+        if "deleted_at" not in f_cols:
+            cursor.execute("ALTER TABLE files ADD COLUMN deleted_at TEXT DEFAULT NULL")
+        if "is_demo" not in f_cols:
+            cursor.execute("ALTER TABLE files ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0")
+
+        # Quarantine rule: any file without an owner is quarantined
+        cursor.execute("UPDATE files SET quarantined = 1 WHERE owner_id IS NULL AND is_deleted = 0")
+
+    # Check users table columns
+    if table_exists("users"):
+        u_cols = [row[1] for row in cursor.execute("PRAGMA table_info(users)").fetchall()]
+        if "name" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''")
+        if "email" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        if "status" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'PENDING'")
+        if "email_verified" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
+        if "token_version" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1")
+        if "approved_by" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN approved_by TEXT DEFAULT NULL")
+        if "approved_at" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN approved_at TEXT DEFAULT NULL")
+        if "is_demo" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0")
+
+    # Check audits table columns
+    if table_exists("audits"):
+        a_cols = [row[1] for row in cursor.execute("PRAGMA table_info(audits)").fetchall()]
+        if "actor_type" not in a_cols:
+            cursor.execute("ALTER TABLE audits ADD COLUMN actor_type TEXT NOT NULL DEFAULT 'OWNER'")
+        if "actor_id" not in a_cols:
+            cursor.execute("ALTER TABLE audits ADD COLUMN actor_id TEXT NOT NULL DEFAULT ''")
+        if "trigger" not in a_cols:
+            cursor.execute("ALTER TABLE audits ADD COLUMN trigger TEXT NOT NULL DEFAULT 'MANUAL'")
+
     conn.commit()
 
 
@@ -160,10 +301,10 @@ def _ensure_genesis_ledger(conn: sqlite3.Connection) -> None:
         entry_type = "GENESIS"
         payload_json = json.dumps({"description": "Simulated Blockchain Append-Only Ledger Genesis", "version": "2.0"})
         created_at = datetime.now(timezone.utc).isoformat()
-        
+
         entry_data = f"{prev_hash}|{entry_type}|{payload_json}|{created_at}".encode("utf-8")
         entry_hash = hashlib.sha256(entry_data).hexdigest().lower()
-        
+
         cursor.execute(
             """
             INSERT INTO ledger (seq, entry_type, payload_json, prev_hash, entry_hash, created_at)
@@ -181,5 +322,6 @@ def init_db(db_path: Optional[Path] = None) -> None:
     with get_db(target_path) as conn:
         conn.executescript(SCHEMA_SQL)
         _migrate_columns_if_needed(conn)
+        conn.executescript(INDEX_SQL)
         _ensure_genesis_ledger(conn)
         conn.commit()

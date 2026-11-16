@@ -7,7 +7,8 @@ import {
   AlertTriangle, 
   Clock, 
   RefreshCw,
-  FileText
+  FileText,
+  Bot
 } from 'lucide-react';
 import { fetchAudits } from '../api/client';
 import type { AuditHistoryRecord } from '../api/types';
@@ -46,9 +47,13 @@ export const AuditsPage: React.FC = () => {
             <ShieldCheck className="h-6 w-6 text-cyan-400" />
             Forensic Audit History & Verification Ledger
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 mb-2">
             Every audit verification creates an immutable forensic record in SQLite containing stopwatch step times and hash comparisons.
           </p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono">
+            <Bot className="h-3.5 w-3.5 text-cyan-400" />
+            <span>Automated by the system (Level A: automated, server-verified; not independent)</span>
+          </div>
         </div>
 
         {/* Filter Controls */}
@@ -117,6 +122,7 @@ export const AuditsPage: React.FC = () => {
                   <th className="py-3 px-3">Timestamp</th>
                   <th className="py-3 px-3">File Name & UUID</th>
                   <th className="py-3 px-3">Kind</th>
+                  <th className="py-3 px-3">Actor / Trigger</th>
                   <th className="py-3 px-3">Verification Result</th>
                   <th className="py-3 px-4 text-right">Details</th>
                 </tr>
@@ -124,6 +130,8 @@ export const AuditsPage: React.FC = () => {
               <tbody className="divide-y divide-slate-800/60 font-mono">
                 {audits.map((a) => {
                   const theme = getStatusTheme(a.status);
+                  const actorType = (a as any).actor_type || 'SYSTEM';
+                  const trigger = (a as any).trigger || 'MANUAL';
                   return (
                     <tr key={a.id} className="hover:bg-slate-900/40 transition-colors">
                       <td className="py-3 px-4 text-slate-400">
@@ -144,6 +152,14 @@ export const AuditsPage: React.FC = () => {
                         <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
                           {a.kind}
                         </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-semibold text-cyan-300 text-[10px]">
+                          {actorType}
+                        </div>
+                        <div className="text-[9px] text-slate-500">
+                          {trigger}
+                        </div>
                       </td>
                       <td className="py-3 px-3">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] border ${theme.bg} ${theme.text} ${theme.border} ${theme.glow}`}>
@@ -200,6 +216,14 @@ export const AuditsPage: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-slate-500">Kind:</span>
                   <span className="text-cyan-300 font-semibold">{selectedAudit.kind}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Actor Attribution:</span>
+                  <span className="text-cyan-300 font-semibold">{(selectedAudit as any).actor_type || 'SYSTEM'} ({(selectedAudit as any).actor_id || 'system'})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Trigger:</span>
+                  <span className="text-purple-300 font-semibold">{(selectedAudit as any).trigger || 'MANUAL'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Final Verdict:</span>

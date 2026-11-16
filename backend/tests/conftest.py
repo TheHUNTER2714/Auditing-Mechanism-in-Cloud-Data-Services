@@ -9,6 +9,8 @@ backend_dir = Path(__file__).resolve().parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
+import config
+
 from app import create_app
 from db import init_db
 
@@ -35,6 +37,9 @@ def temp_env(tmp_path, test_secret):
         "VERSIONS_STORAGE_DIR": vers_dir,
         "DB_PATH": db_path,
         "CHAIN_SECRET": test_secret,
+        "JWT_SECRET": config.JWT_SECRET if (config.JWT_SECRET and len(config.JWT_SECRET) >= 32) else "unit-test-secure-jwt-secret-key-849204",
+        "LOG_SECRET": config.LOG_SECRET if (config.LOG_SECRET and len(config.LOG_SECRET) >= 32) else "unit-test-secure-log-secret-key-928172",
+        "AUDITOR_SERVICE_TOKEN": config.AUDITOR_SERVICE_TOKEN if (config.AUDITOR_SERVICE_TOKEN and len(config.AUDITOR_SERVICE_TOKEN) >= 32) else "unit-test-secure-auditor-service-token-192837",
         "TESTING": True,
     }
 

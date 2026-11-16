@@ -125,7 +125,11 @@ def verify_chain_logic(
         ):
             return False, v_num, f"HMAC chain signature invalid at V{v_num}"
 
-        # Blob on disk check
+        # Blob on disk check (soft-delete tombstones do not require a content blob)
+        if v_row.get("activity") == "DELETE":
+            prev_hc = stored_hc
+            continue
+
         if not blob_path.is_file():
             return False, v_num, f"Historical version blob missing on disk at V{v_num}"
 
@@ -161,6 +165,9 @@ def execute_audit(
     db_path: Optional[Path] = None,
     secret: Optional[str] = None,
     current_storage_dir: Optional[Path] = None,
+    actor_type: str = "OWNER",
+    actor_id: str = "",
+    trigger: str = "MANUAL",
 ) -> Dict[str, Any]:
     """
     Perform full audit with strict precedence:
@@ -198,6 +205,7 @@ def execute_audit(
             }
 
         versions_data = [dict(r) for r in version_rows]
+        file_dict = dict(file_row)
         latest_version = file_row["current_version"]
         latest_v_row = next((v for v in versions_data if v["version"] == latest_version), None)
         expected_content_hash = latest_v_row["content_hash"] if latest_v_row else ""
@@ -228,6 +236,11 @@ def execute_audit(
 
         def compute_current_hash():
             nonlocal actual_content_hash, file_exists, content_ok
+            if file_dict.get("is_deleted", 0) == 1 or (latest_v_row and latest_v_row.get("activity") == "DELETE"):
+                file_exists = False
+                actual_content_hash = "FILE_SOFT_DELETED"
+                content_ok = True
+                return True
             if not current_file_path.is_file():
                 file_exists = False
                 actual_content_hash = "FILE_MISSING"
@@ -266,16 +279,31 @@ def execute_audit(
             "audited_at": audited_at,
         }
 
-        # Write audit row to SQLite
+        # Write audit row to SQLite with attribution
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO audits (file_id, kind, status, details_json, created_at)
-            VALUES (?, 'AUDIT', ?, ?, ?)
+            INSERT INTO audits (file_id, kind, status, details_json, actor_type, actor_id, trigger, created_at)
+            VALUES (?, 'AUDIT', ?, ?, ?, ?, ?, ?)
             """,
-            (file_id, status, json.dumps(result_payload), audited_at),
+            (file_id, status, json.dumps(result_payload), actor_type, actor_id, trigger, audited_at),
         )
         conn.commit()
+
+        # Log to tamper-evident audit_log
+        try:
+            from policy import append_audit_log
+            append_audit_log(
+                conn,
+                actor_type=actor_type,
+                actor_id=actor_id or "system",
+                action="EXECUTE_INTEGRITY_AUDIT",
+                resource=f"file:{file_id}",
+                result=status,
+                details={"version": latest_version, "trigger": trigger, "status": status},
+            )
+        except Exception:
+            pass
 
         # If tamper or broken chain, raise security alert
         if status in ("TAMPERED", "VERSION_HISTORY_ALTERED"):

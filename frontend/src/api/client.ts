@@ -68,6 +68,76 @@ export const api = {
   },
 
   // Auth
+  async register(name: string, email: string, password: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+    return handleResponse(res);
+  },
+
+  async verifyEmail(token: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/auth/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    return handleResponse(res);
+  },
+
+  async resendVerification(email: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/auth/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse(res);
+  },
+
+  async forgotPassword(email: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse(res);
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    });
+    return handleResponse(res);
+  },
+
+  async getProfile(): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/auth/profile`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async updateProfile(name: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/auth/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ name }),
+    });
+    return handleResponse(res);
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    return handleResponse(res);
+  },
+
   async login(username: string, password: string): Promise<UserSession> {
     const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
@@ -139,6 +209,30 @@ export const api = {
   async deleteFile(fileId: string): Promise<any> {
     const res = await fetch(`${API_BASE}/api/files/${fileId}`, {
       method: 'DELETE',
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getReceipt(fileId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/files/${fileId}/receipt`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async delegate(fileId: string, intervalMinutes: number = 60, sampleSize: number = 20): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/files/${fileId}/delegate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ interval_minutes: intervalMinutes, sample_size: sampleSize }),
+    });
+    return handleResponse(res);
+  },
+
+  async revokeDelegation(fileId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/files/${fileId}/revoke-delegation`, {
+      method: 'POST',
       headers: getAuthHeader(),
     });
     return handleResponse(res);
@@ -338,6 +432,79 @@ export const api = {
 
   async seedDemo(): Promise<any> {
     const res = await fetch(`${API_BASE}/api/demo/seed`, { method: 'POST' });
+    return handleResponse(res);
+  },
+
+  // Break-glass Admin Operations
+  async adminLogin(username: string, password: string): Promise<UserSession> {
+    const res = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const session = await handleResponse<UserSession>(res);
+    localStorage.setItem('bt032_auth_token', session.token);
+    localStorage.setItem('bt032_auth_role', session.role);
+    localStorage.setItem('bt032_auth_username', session.username);
+    return session;
+  },
+
+  async getAdminOverview(): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/admin/overview`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminUsers(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/api/admin/users`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async adminUserAction(userId: string, action: 'approve' | 'reject' | 'suspend' | 'reactivate'): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/admin/users/${userId}/${action}`, {
+      method: 'POST',
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminPolicy(): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/admin/policy`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async updateAdminPolicy(policy: any): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/admin/policy`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(policy),
+    });
+    return handleResponse(res);
+  },
+
+  async verifyAdminLog(): Promise<{ valid: boolean; bad_entry?: number; reason?: string }> {
+    const res = await fetch(`${API_BASE}/api/admin/log/verify`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminSecurityEvents(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/api/admin/security-events`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminAuditMonitoring(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/api/admin/audit-monitoring`, {
+      headers: getAuthHeader(),
+    });
     return handleResponse(res);
   },
 };

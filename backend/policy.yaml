@@ -1,0 +1,28 @@
+# ==============================================================================
+# Auditing Mechanism in Cloud Data Services - Policy Engine Configuration
+# ==============================================================================
+
+# User Registration Rules
+registration:
+  auto_approve: false
+  allowed_email_domains:
+    - "example.com"
+    - "university.edu"
+    - "cloud.local"
+
+# Suspicious Activity Detection Rules
+suspicious_activity:
+  max_failed_logins: 5
+  auto_suspend_minutes: 30
+  idor_probe_threshold: 5
+
+# Data Retention Rules
+retention:
+  soft_deleted_days: 30
+  purge_schedule_hours: 24
+
+# Alerting Thresholds
+alerts:
+  escalate_failed_audits: true
+  watchdog_multiplier: 2.0 # Raise AUDIT_MISSED if no audit after 2 * interval
+

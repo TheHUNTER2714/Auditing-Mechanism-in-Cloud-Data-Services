@@ -11,9 +11,12 @@ import {
   XCircle, 
   AlertTriangle,
   RefreshCw,
-  FileText
+  FileText,
+  Download,
+  Bot,
+  Info
 } from 'lucide-react';
-import { fetchFileVersions, runAudit, verifyVersionChain, updateFileVersion, simulateHistoryTamper, fetchConfig } from '../api/client';
+import { api, fetchFileVersions, runAudit, verifyVersionChain, updateFileVersion, simulateHistoryTamper, fetchConfig } from '../api/client';
 import type { VersionRecord, AuditResult, VerifyChainResult, ConfigResponse } from '../api/types';
 import { getReceiptForFile } from '../utils/receiptStore';
 import { shortHash, formatBytes, formatDateTime } from '../utils/formatters';
@@ -51,9 +54,60 @@ export const FileDetailPage: React.FC = () => {
     }
   };
 
+  const [delegated, setDelegated] = useState(false);
+  const [delegating, setDelegating] = useState(false);
+
   useEffect(() => {
     loadData();
   }, [id]);
+
+  const handleDownloadReceipt = async () => {
+    if (!id) return;
+    try {
+      let rData = null;
+      try {
+        rData = await api.getReceipt(id);
+      } catch {
+        rData = getReceiptForFile(id);
+      }
+      if (!rData) {
+        alert("No receipt found on server or locally.");
+        return;
+      }
+      const blob = new Blob([JSON.stringify(rData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt-${id}-v${fileDetails?.current_version || 1}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(`Download receipt failed: ${err.message}`);
+    }
+  };
+
+  const handleToggleDelegation = async () => {
+    if (!id) return;
+    setDelegating(true);
+    try {
+      if (delegated) {
+        await api.revokeDelegation(id);
+        setDelegated(false);
+        setActionNotice("Delegation revoked. Automated Auditor Service will no longer run background audits on this file.");
+      } else {
+        await api.delegate(id, 60, 20);
+        setDelegated(true);
+        setActionNotice("Delegation active! Automated Auditor Service background scheduler will audit this file periodically using random challenges.");
+      }
+      setTimeout(() => setActionNotice(null), 8000);
+    } catch (err: any) {
+      alert(`Delegation error: ${err.message}`);
+    } finally {
+      setDelegating(false);
+    }
+  };
 
   const handleRunAudit = async () => {
     if (!id) return;
@@ -179,6 +233,27 @@ export const FileDetailPage: React.FC = () => {
               <span>Verify Version Chain</span>
             </button>
             <button
+              onClick={handleDownloadReceipt}
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-950/40 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-900/40 px-3.5 py-2 text-xs font-medium transition-all"
+              title="Download signed owner receipt JSON (cryptographic anchor against server rollback)"
+            >
+              <Download className="h-4 w-4" />
+              <span>Download Receipt</span>
+            </button>
+            <button
+              onClick={handleToggleDelegation}
+              disabled={delegating}
+              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-all border ${
+                delegated
+                  ? 'bg-purple-950/60 text-purple-300 border-purple-500/50 hover:bg-purple-900/60'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+              }`}
+              title="Automate periodic audits via the Automated Auditor Service"
+            >
+              <Bot className="h-4 w-4 text-purple-400" />
+              <span>{delegating ? 'Updating...' : delegated ? 'Delegation: Active (60m)' : 'Delegate to Auditor'}</span>
+            </button>
+            <button
               onClick={() => fileInputRef.current?.click()}
               disabled={updating}
               className="flex items-center gap-1.5 rounded-lg bg-blue-950/40 text-blue-300 border border-blue-500/30 hover:bg-blue-900/40 px-3.5 py-2 text-xs font-medium transition-all disabled:opacity-50"
@@ -206,6 +281,12 @@ export const FileDetailPage: React.FC = () => {
       {/* Audit Result Display */}
       {auditResult && (
         <div className="glass-panel rounded-2xl p-6 border-cyan-400/40 mb-8 animate-fadeIn">
+          {/* Honesty in UI: Level A Badge */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono mb-3">
+            <Bot className="h-3.5 w-3.5 text-cyan-400" />
+            <span>Automated by the system (Level A: automated, server-verified; not independent)</span>
+          </div>
+
           <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
             <div className="flex items-center gap-2">
               <div className={`p-1.5 rounded-lg border ${
@@ -248,6 +329,19 @@ export const FileDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Owner Receipt Anchor Notice */}
+      <div className="mb-6 p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
+        <Info className="h-5 w-5 text-cyan-400 shrink-0 mt-0.5" />
+        <div className="text-xs">
+          <span className="font-semibold text-white">Owner Cryptographic Anchor: </span>
+          <span className="text-slate-300">
+            The downloaded JSON receipt contains your cryptographic hash chain anchor (HC_v) and Merkle root (R_v).
+            While the server preserves an append-only receipt log, your locally downloaded receipt is your ultimate
+            anchor against server-side rollback or history modification attacks.
+          </span>
+        </div>
+      </div>
 
       {/* Version Chain Visual Timeline */}
       <div className="glass-panel rounded-2xl p-6 border-cyan-500/20">

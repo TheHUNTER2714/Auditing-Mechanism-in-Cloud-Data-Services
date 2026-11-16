@@ -15,6 +15,12 @@ import { BenchmarkPage } from './pages/BenchmarkPage';
 import { AlertsPage } from './pages/AlertsPage';
 import { BatchAuditPage } from './pages/BatchAuditPage';
 import { AuditsPage } from './pages/AuditsPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { AccountSettingsPage } from './pages/AccountSettingsPage';
+import { AdminPage } from './pages/AdminPage';
 
 export function App() {
   return (
@@ -24,6 +30,11 @@ export function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/admin/login" element={<LoginPage isAdmin />} />
 
         {/* Dedicated Application Routes (Wrapped in AppLayout with Sidebar & Topbar) */}
         <Route element={<AppLayout />}>
@@ -38,6 +49,8 @@ export function App() {
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/batch-audit" element={<BatchAuditPage />} />
           <Route path="/benchmarks" element={<BenchmarkPage />} />
+          <Route path="/settings" element={<AccountSettingsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Route>
 
         {/* Fallback to Home */}

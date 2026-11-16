@@ -58,10 +58,17 @@ export const PublicNavbar: React.FC = () => {
           </Link>
 
           <Link
+            to="/register"
+            className="text-slate-300 hover:text-cyan-300 transition-colors hidden sm:inline-block"
+          >
+            Register
+          </Link>
+
+          <Link
             to="/login"
             className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/40 text-cyan-300 font-medium transition-all shadow-[0_0_12px_rgba(34,211,238,0.2)] hover:scale-105"
           >
-            <span>Open Dashboard</span>
+            <span>Sign In / Enter</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </nav>
