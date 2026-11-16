@@ -56,19 +56,27 @@ export const AppLayout: React.FC = () => {
     navigate('/login');
   };
 
-  const navItems: NavItem[] = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Files Inventory', path: '/files', icon: Files },
-    { name: 'Upload Data', path: '/upload', icon: UploadCloud },
-    { name: 'Audit History', path: '/audits', icon: FileCheck },
-    { name: 'TPA Console', path: '/tpa', icon: ShieldCheck },
-    { name: 'Simulated Ledger', path: '/ledger', icon: Database },
-    { name: 'Security Alerts', path: '/alerts', icon: AlertTriangle, badge: alertCount },
-    { name: 'Batch Audit', path: '/batch-audit', icon: Layers },
-    { name: 'Benchmarks', path: '/benchmarks', icon: BarChart3 },
-    { name: 'Account Settings', path: '/settings', icon: Settings },
-    ...(role === 'ADMIN' ? [{ name: 'Admin Console', path: '/admin', icon: ShieldAlert }] : []),
-  ];
+  const navItems: NavItem[] = role === 'ADMIN'
+    ? [
+        { name: 'Admin Console', path: '/admin', icon: ShieldAlert },
+        { name: 'System Telemetry', path: '/dashboard', icon: LayoutDashboard },
+        { name: 'Files Inventory', path: '/files', icon: Files },
+        { name: 'Audit History', path: '/audits', icon: FileCheck },
+        { name: 'Simulated Ledger', path: '/ledger', icon: Database },
+        { name: 'Security Alerts', path: '/alerts', icon: AlertTriangle, badge: alertCount },
+        { name: 'Benchmarks & Reports', path: '/benchmarks', icon: BarChart3 },
+        { name: 'Account Settings', path: '/settings', icon: Settings },
+      ]
+    : [
+        { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
+        { name: 'My Files', path: '/files', icon: Files },
+        { name: 'Upload File', path: '/upload', icon: UploadCloud },
+        { name: 'Audit History', path: '/audits', icon: FileCheck },
+        { name: 'Manual Audit Request', path: '/batch-audit', icon: Layers },
+        { name: 'Security Alerts', path: '/alerts', icon: AlertTriangle, badge: alertCount },
+        { name: 'My Reports', path: '/benchmarks', icon: BarChart3 },
+        { name: 'Account Settings', path: '/settings', icon: Settings },
+      ];
 
   const roleLabel = role === 'OWNER' ? 'Data Owner' : role === 'TPA' ? 'Third-Party Auditor' : 'System Admin';
 

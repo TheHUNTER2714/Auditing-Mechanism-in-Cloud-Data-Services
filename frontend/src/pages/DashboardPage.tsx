@@ -27,6 +27,7 @@ export const DashboardPage: React.FC = () => {
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const role = localStorage.getItem('bt032_auth_role') || 'OWNER';
 
   const loadDashboardData = async () => {
     try {
@@ -118,7 +119,7 @@ export const DashboardPage: React.FC = () => {
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
 
-            {config?.demo_mode && (
+            {role === 'ADMIN' && config?.demo_mode && (
               <>
                 <button
                   onClick={handleSeed}

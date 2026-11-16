@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS users (
     token_version INTEGER NOT NULL DEFAULT 1,
     approved_by TEXT DEFAULT NULL,
     approved_at TEXT DEFAULT NULL,
+    rejection_reason TEXT DEFAULT NULL,
+    verification_results TEXT DEFAULT NULL,
     is_demo INTEGER NOT NULL DEFAULT 0,
     user_key BLOB NOT NULL, -- k_u (blinding key, never returned across API)
     created_at TEXT NOT NULL
@@ -278,6 +280,10 @@ def _migrate_columns_if_needed(conn: sqlite3.Connection) -> None:
             cursor.execute("ALTER TABLE users ADD COLUMN approved_at TEXT DEFAULT NULL")
         if "is_demo" not in u_cols:
             cursor.execute("ALTER TABLE users ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0")
+        if "rejection_reason" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN rejection_reason TEXT DEFAULT NULL")
+        if "verification_results" not in u_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN verification_results TEXT DEFAULT NULL")
 
     # Check audits table columns
     if table_exists("audits"):

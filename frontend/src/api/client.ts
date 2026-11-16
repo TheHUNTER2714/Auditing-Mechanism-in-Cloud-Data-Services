@@ -463,10 +463,11 @@ export const api = {
     return handleResponse(res);
   },
 
-  async adminUserAction(userId: string, action: 'approve' | 'reject' | 'suspend' | 'reactivate'): Promise<any> {
+  async adminUserAction(userId: string, action: 'approve' | 'reject' | 'suspend' | 'reactivate', reason?: string): Promise<any> {
     const res = await fetch(`${API_BASE}/api/admin/users/${userId}/${action}`, {
       method: 'POST',
-      headers: getAuthHeader(),
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ reason: reason || '' }),
     });
     return handleResponse(res);
   },
@@ -501,8 +502,37 @@ export const api = {
     return handleResponse(res);
   },
 
-  async getAdminAuditMonitoring(): Promise<any[]> {
+  async getAdminAuditMonitoring(): Promise<any> {
     const res = await fetch(`${API_BASE}/api/admin/audit-monitoring`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminFailedVerifications(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/api/admin/failed-verifications`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminScheduler(): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/admin/scheduler`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async triggerAdminScheduler(): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/admin/scheduler/trigger`, {
+      method: 'POST',
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminReports(): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/admin/reports`, {
       headers: getAuthHeader(),
     });
     return handleResponse(res);

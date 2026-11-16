@@ -131,6 +131,7 @@ def get_current_user(conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
                 u_dict = dict(demo_user)
                 u_dict["role"] = demo_user["role"]
                 u_dict["status"] = demo_user["status"] if "status" in demo_user.keys() else "ACTIVE"
+                u_dict["email_verified"] = demo_user["email_verified"] if "email_verified" in demo_user.keys() else 1
                 return u_dict
             return {
                 "id": "demo-owner-id-01",
@@ -139,6 +140,7 @@ def get_current_user(conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
                 "username": "owner@cloud.local",
                 "role": "OWNER",
                 "status": "ACTIVE",
+                "email_verified": 1,
                 "token_version": 1,
             }
         return None
@@ -161,6 +163,7 @@ def get_current_user(conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
                 "username": payload.get("username", payload.get("email", "")),
                 "role": payload.get("role", "OWNER"),
                 "status": "ACTIVE",
+                "email_verified": 1,
                 "token_version": payload.get("token_version", 1),
             }
         return None
@@ -175,6 +178,7 @@ def get_current_user(conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
     # Ensure role in token matches current database role (role changes take effect immediately)
     user_dict["role"] = row["role"]
     user_dict["status"] = row["status"] if "status" in row.keys() else "ACTIVE"
+    user_dict["email_verified"] = row["email_verified"] if "email_verified" in row.keys() else 1
     return user_dict
 
 
@@ -194,8 +198,14 @@ def login_required(f: Callable) -> Callable:
                 return jsonify({"error": "FORBIDDEN", "message": "Account is suspended.", "status": "SUSPENDED"}), 403
             if status == "REJECTED":
                 return jsonify({"error": "FORBIDDEN", "message": "Account registration was rejected.", "status": "REJECTED"}), 403
-            if status == "PENDING":
-                return jsonify({"error": "FORBIDDEN", "message": "Account registration is pending approval.", "status": "PENDING"}), 403
+            if status == "EMAIL_VERIFICATION_PENDING":
+                return jsonify({"error": "FORBIDDEN", "message": "Email verification is pending.", "status": "EMAIL_VERIFICATION_PENDING"}), 403
+            if status in ("PENDING", "PENDING_APPROVAL"):
+                return jsonify({"error": "FORBIDDEN", "message": "Account registration is pending administrator approval.", "status": "PENDING_APPROVAL"}), 403
+            if status != "ACTIVE":
+                return jsonify({"error": "FORBIDDEN", "message": f"Account is {status}.", "status": status}), 403
+            if not user.get("email_verified", 0):
+                return jsonify({"error": "FORBIDDEN", "message": "Email verification is required.", "status": "EMAIL_VERIFICATION_PENDING"}), 403
 
             request.current_user = user
             return f(*args, **kwargs)
@@ -475,3 +485,11 @@ def register_cli_commands(app) -> None:
             )
             conn.commit()
             click.echo(f"Break-Glass Admin '{email_clean}' successfully created!")
+
+    @app.cli.command("seed-demo")
+    def seed_demo_cmd():
+        """Explicit development-only CLI command to seed demo users and sample files."""
+        from db import get_db
+        with get_db(app.config["DB_PATH"]) as conn:
+            seed_demo_users_if_needed(conn)
+            click.echo("Demo accounts seeded successfully.")

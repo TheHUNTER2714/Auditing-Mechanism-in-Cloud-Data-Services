@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import os
+import re
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -130,10 +131,8 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
     Path(app.config["VERSIONS_STORAGE_DIR"]).mkdir(parents=True, exist_ok=True)
     init_db(app.config["DB_PATH"])
 
-    # Seed demo users if demo mode is enabled
-    if app.config["ENABLE_DEMO_TAMPER"]:
-        with get_db(app.config["DB_PATH"]) as conn:
-            seed_demo_users_if_needed(conn)
+    # Phase 1 requirement: Demo seeding is an explicit development action (flask seed-demo)
+    # and MUST NOT run automatically on application startup.
 
     # Start background scheduler
     scheduler = AuditScheduler(db_path=app.config["DB_PATH"])
@@ -215,9 +214,13 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         name = (data.get("name") or "").strip()
         email = (data.get("email") or data.get("username") or "").strip().lower()
         password = data.get("password", "")
+        confirm_password = data.get("confirm_password")
 
         if not email or "@" not in email:
             return jsonify({"error": "INVALID_INPUT", "message": "A valid email address is required."}), 400
+
+        if confirm_password is not None and confirm_password != password:
+            return jsonify({"error": "PASSWORD_MISMATCH", "message": "Password and confirmation do not match."}), 400
 
         ok, msg = validate_password_strength(password)
         if not ok:
@@ -235,13 +238,34 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
             user_key = generate_user_blinding_key()
             now_iso = datetime.now(timezone.utc).isoformat()
 
+            # Automated system verification & risk checks
+            disposable_domains = {"mailinator.com", "tempmail.com", "10minutemail.com", "throwawaymail.com", "guerrillamail.com", "trashmail.com"}
+            domain = email.split("@", 1)[1].lower() if "@" in email else ""
+            risk_flags = []
+            if domain in disposable_domains:
+                risk_flags.append("DISPOSABLE_EMAIL_DOMAIN")
+            if not re.match(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$", email):
+                risk_flags.append("UNCONVENTIONAL_EMAIL_FORMAT")
+
+            risk_score = len(risk_flags) * 50
+            verif_summary = {
+                "risk_score": risk_score,
+                "risk_level": "HIGH" if risk_score >= 50 else "LOW",
+                "flags": risk_flags,
+                "checks_passed": len(risk_flags) == 0,
+                "domain": domain,
+                "password_strength": "STRONG",
+                "registered_at": now_iso,
+            }
+            verif_json = json.dumps(verif_summary)
+
             # Rule 1: Public registration creates OWNER only. Role field in request is strictly ignored.
             cursor.execute(
                 """
-                INSERT INTO users (id, name, email, username, pw_hash, role, status, email_verified, token_version, created_at, user_key, is_demo)
-                VALUES (?, ?, ?, ?, ?, 'OWNER', 'PENDING', 0, 1, ?, ?, 0)
+                INSERT INTO users (id, name, email, username, pw_hash, role, status, email_verified, token_version, created_at, user_key, is_demo, verification_results)
+                VALUES (?, ?, ?, ?, ?, 'OWNER', 'EMAIL_VERIFICATION_PENDING', 0, 1, ?, ?, 0, ?)
                 """,
-                (user_id, name, email, email, pw_hash, now_iso, user_key),
+                (user_id, name, email, email, pw_hash, now_iso, user_key, verif_json),
             )
             raw_token = create_email_verification(conn, user_id, email)
 
@@ -252,13 +276,14 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
                 action="REGISTER_OWNER",
                 resource=f"user:{user_id}",
                 result="PENDING_VERIFICATION",
-                details={"email": email},
+                details={"email": email, "risk_level": verif_summary["risk_level"]},
             )
             conn.commit()
 
             return jsonify(
                 {
                     "status": "REGISTERED",
+                    "account_status": "EMAIL_VERIFICATION_PENDING",
                     "message": "Registration successful. Please verify your email using the link sent to your inbox.",
                     "user_id": user_id,
                     "email": email,
@@ -288,7 +313,7 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
             user_email = user["email"] or user["username"]
 
             new_status, rule = evaluate_registration_policy(user_email, email_verified=True)
-            cursor.execute("UPDATE users SET status = ? WHERE id = ?", (new_status, user_id))
+            cursor.execute("UPDATE users SET status = ?, email_verified = 1 WHERE id = ?", (new_status, user_id))
 
             append_audit_log(
                 conn,
@@ -460,9 +485,15 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
             if user_status == "SUSPENDED":
                 return jsonify({"error": "FORBIDDEN", "message": "Account suspended. Please contact administrator.", "status": "SUSPENDED"}), 403
             if user_status == "REJECTED":
-                return jsonify({"error": "FORBIDDEN", "message": "Account registration rejected.", "status": "REJECTED"}), 403
-            if user_status == "PENDING":
-                return jsonify({"error": "FORBIDDEN", "message": "Account registration is pending approval.", "status": "PENDING"}), 403
+                reason = user_row["rejection_reason"] if "rejection_reason" in user_row.keys() and user_row["rejection_reason"] else None
+                msg = f"Account registration rejected: {reason}" if reason else "Account registration rejected."
+                return jsonify({"error": "FORBIDDEN", "message": msg, "status": "REJECTED", "reason": reason}), 403
+            if user_status == "EMAIL_VERIFICATION_PENDING" or not user_row["email_verified"]:
+                return jsonify({"error": "FORBIDDEN", "message": "Email verification pending. Please verify your email before logging in.", "status": "EMAIL_VERIFICATION_PENDING"}), 403
+            if user_status in ("PENDING", "PENDING_APPROVAL"):
+                return jsonify({"error": "FORBIDDEN", "message": "Account registration is pending administrator approval.", "status": user_status}), 403
+            if user_status != "ACTIVE":
+                return jsonify({"error": "FORBIDDEN", "message": f"Account is {user_status}.", "status": user_status}), 403
 
             token_ver = user_row["token_version"] if "token_version" in user_row.keys() else 1
             user_email = user_row["email"] if ("email" in user_row.keys() and user_row["email"]) else user_row["username"]
@@ -1540,7 +1571,11 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         try:
             cursor = conn.cursor()
             total_users = cursor.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-            pending_users = cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'PENDING'").fetchone()[0]
+            pending_users = cursor.execute("SELECT COUNT(*) FROM users WHERE status IN ('PENDING', 'PENDING_APPROVAL', 'EMAIL_VERIFICATION_PENDING')").fetchone()[0]
+            approved_users = cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'ACTIVE'").fetchone()[0]
+            rejected_users = cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'REJECTED'").fetchone()[0]
+            suspended_users = cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'SUSPENDED'").fetchone()[0]
+            active_files = cursor.execute("SELECT COUNT(*) FROM files WHERE is_deleted = 0 AND quarantined = 0").fetchone()[0]
             quarantined = cursor.execute("SELECT COUNT(*) FROM files WHERE quarantined = 1").fetchone()[0]
             total_audits = cursor.execute("SELECT COUNT(*) FROM audits").fetchone()[0]
             open_alerts = cursor.execute("SELECT COUNT(*) FROM alerts WHERE acknowledged = 0").fetchone()[0]
@@ -1548,11 +1583,18 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
 
             return jsonify({
                 "total_users": total_users,
+                "users_count": total_users,
                 "pending_users": pending_users,
+                "approved_users": approved_users,
+                "rejected_users": rejected_users,
+                "suspended_users": suspended_users,
+                "active_files": active_files,
                 "quarantined_files": quarantined,
                 "total_audits": total_audits,
                 "open_alerts": open_alerts,
                 "active_delegations": active_delegations,
+                "auditor_status": "ONLINE",
+                "scheduler_status": "RUNNING" if scheduler and scheduler.is_alive() else "STOPPED",
                 "system_status": "SECURE",
             })
         finally:
@@ -1564,7 +1606,14 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         conn = get_db(app.config["DB_PATH"])
         try:
             cursor = conn.cursor()
-            rows = cursor.execute("SELECT id, name, email, username, role, status, email_verified, created_at, approved_by, approved_at FROM users ORDER BY created_at DESC").fetchall()
+            rows = cursor.execute(
+                """
+                SELECT id, name, email, username, role, status, email_verified,
+                       created_at, approved_by, approved_at, rejection_reason, verification_results
+                FROM users
+                ORDER BY created_at DESC
+                """
+            ).fetchall()
             return jsonify([dict(r) for r in rows])
         finally:
             conn.close()
@@ -1575,6 +1624,13 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         action = action.lower()
         if action not in ("approve", "reject", "suspend", "reactivate"):
             return jsonify({"error": "INVALID_ACTION", "message": f"Action '{action}' is not supported."}), 400
+
+        data = request.get_json(silent=True) or {}
+        reason = (data.get("reason") or "").strip()
+
+        # Enforce mandatory reason for rejection
+        if action == "reject" and not reason:
+            return jsonify({"error": "REASON_REQUIRED", "message": "A rejection reason is mandatory."}), 400
 
         admin_user = request.current_user
         conn = get_db(app.config["DB_PATH"])
@@ -1596,10 +1652,21 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
                 "reactivate": "ACTIVE",
             }[action]
 
-            cursor.execute(
-                "UPDATE users SET status = ?, approved_by = ?, approved_at = ?, token_version = token_version + 1 WHERE id = ?",
-                (new_status, admin_user["id"], now_iso, user_id),
-            )
+            if action == "reject":
+                cursor.execute(
+                    "UPDATE users SET status = ?, approved_by = ?, approved_at = ?, rejection_reason = ?, token_version = token_version + 1 WHERE id = ?",
+                    (new_status, admin_user["id"], now_iso, reason, user_id),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE users SET status = ?, approved_by = ?, approved_at = ?, token_version = token_version + 1 WHERE id = ?",
+                    (new_status, admin_user["id"], now_iso, user_id),
+                )
+
+            details_payload = {"target_email": target["email"]}
+            if reason:
+                details_payload["reason"] = reason
+
             append_audit_log(
                 conn,
                 actor_type="ADMIN",
@@ -1607,7 +1674,16 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
                 action=f"ADMIN_{action.upper()}_USER",
                 resource=f"user:{user_id}",
                 result=new_status,
-                details={"target_email": target["email"]},
+                details=details_payload,
+            )
+            log_event(
+                conn,
+                actor_id=admin_user["id"],
+                role="ADMIN",
+                action=f"USER_{action.upper()}",
+                target=target["email"],
+                result="SUCCESS",
+                ip=request.remote_addr or "127.0.0.1",
             )
             conn.commit()
 
@@ -1616,6 +1692,7 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
                 "user_id": user_id,
                 "new_status": new_status,
                 "action": action,
+                "reason": reason if reason else None,
             })
         finally:
             conn.close()
@@ -1670,9 +1747,84 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
             cursor = conn.cursor()
             audits = cursor.execute("SELECT * FROM audits ORDER BY created_at DESC LIMIT 100").fetchall()
             delegations = cursor.execute("SELECT * FROM delegations ORDER BY created_at DESC").fetchall()
+            jobs = cursor.execute("SELECT * FROM audit_jobs ORDER BY created_at DESC LIMIT 50").fetchall()
             return jsonify({
                 "audits": [dict(a) for a in audits],
                 "delegations": [dict(d) for d in delegations],
+                "jobs": [dict(j) for j in jobs],
+            })
+        finally:
+            conn.close()
+
+    @app.route("/api/admin/failed-verifications", methods=["GET"])
+    @admin_required
+    def admin_failed_verifications():
+        conn = get_db(app.config["DB_PATH"])
+        try:
+            cursor = conn.cursor()
+            rows = cursor.execute(
+                """
+                SELECT * FROM events
+                WHERE result = 'FAILED' OR action LIKE '%FAIL%' OR action LIKE '%REJECT%' OR action LIKE '%SUSPEND%'
+                ORDER BY created_at DESC LIMIT 100
+                """
+            ).fetchall()
+            return jsonify([dict(r) for r in rows])
+        finally:
+            conn.close()
+
+    @app.route("/api/admin/scheduler", methods=["GET"])
+    @admin_required
+    def admin_scheduler():
+        conn = get_db(app.config["DB_PATH"])
+        try:
+            cursor = conn.cursor()
+            scheds = cursor.execute("SELECT * FROM schedules ORDER BY id ASC").fetchall()
+            pending_jobs = cursor.execute("SELECT COUNT(*) FROM audit_jobs WHERE status = 'PENDING'").fetchone()[0]
+            running_jobs = cursor.execute("SELECT COUNT(*) FROM audit_jobs WHERE status = 'RUNNING'").fetchone()[0]
+            return jsonify({
+                "status": "RUNNING" if scheduler and scheduler.is_alive() else "STOPPED",
+                "interval_seconds": scheduler.interval_seconds if scheduler else 60,
+                "schedules": [dict(s) for s in scheds],
+                "pending_jobs": pending_jobs,
+                "running_jobs": running_jobs,
+            })
+        finally:
+            conn.close()
+
+    @app.route("/api/admin/scheduler/trigger", methods=["POST"])
+    @admin_required
+    def admin_scheduler_trigger():
+        if scheduler and scheduler.is_alive():
+            scheduler.trigger_now()
+            return jsonify({"status": "SUCCESS", "message": "Audit scheduler trigger executed."})
+        return jsonify({"error": "SERVICE_UNAVAILABLE", "message": "Audit scheduler is not running."}), 503
+
+    @app.route("/api/admin/reports", methods=["GET"])
+    @admin_required
+    def admin_reports():
+        conn = get_db(app.config["DB_PATH"])
+        try:
+            cursor = conn.cursor()
+            total_users = cursor.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            active_users = cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'ACTIVE'").fetchone()[0]
+            total_files = cursor.execute("SELECT COUNT(*) FROM files WHERE is_deleted = 0").fetchone()[0]
+            total_audits = cursor.execute("SELECT COUNT(*) FROM audits").fetchone()[0]
+            pass_audits = cursor.execute("SELECT COUNT(*) FROM audits WHERE status = 'PASS'").fetchone()[0]
+            fail_audits = cursor.execute("SELECT COUNT(*) FROM audits WHERE status != 'PASS'").fetchone()[0]
+            total_alerts = cursor.execute("SELECT COUNT(*) FROM alerts").fetchone()[0]
+            _, head_hash = get_ledger_head(conn)
+            return jsonify({
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "total_users": total_users,
+                "active_users": active_users,
+                "total_files": total_files,
+                "total_audits": total_audits,
+                "pass_audits": pass_audits,
+                "fail_audits": fail_audits,
+                "pass_rate_percent": round((pass_audits / total_audits * 100), 2) if total_audits > 0 else 100.0,
+                "total_alerts": total_alerts,
+                "ledger_head_hash": head_hash,
             })
         finally:
             conn.close()
@@ -1869,17 +2021,23 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
             cursor = conn.cursor()
             file_filter = request.args.get("file_id")
             status_filter = request.args.get("status")
+            user = get_current_user(conn)
 
-            query = "SELECT * FROM audits WHERE 1=1"
-            params = []
+            if user and user.get("role") == "OWNER":
+                query = "SELECT a.* FROM audits a JOIN files f ON a.file_id = f.id WHERE f.owner_id = ? AND f.is_demo = 0"
+                params = [user["id"]]
+            else:
+                query = "SELECT a.* FROM audits a WHERE 1=1"
+                params = []
+
             if file_filter:
-                query += " AND file_id = ?"
+                query += " AND a.file_id = ?"
                 params.append(file_filter)
             if status_filter:
-                query += " AND status = ?"
+                query += " AND a.status = ?"
                 params.append(status_filter)
 
-            query += " ORDER BY id DESC LIMIT 100"
+            query += " ORDER BY a.id DESC LIMIT 100"
             rows = cursor.execute(query, params).fetchall()
             return jsonify([dict(r) for r in rows])
         finally:
@@ -1890,13 +2048,31 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         conn = get_db(app.config["DB_PATH"])
         try:
             cursor = conn.cursor()
-            total_files = cursor.execute("SELECT COUNT(*) FROM files WHERE is_deleted = 0").fetchone()[0]
-            total_versions = cursor.execute("SELECT COUNT(*) FROM versions").fetchone()[0]
-            total_audits = cursor.execute("SELECT COUNT(*) FROM audits").fetchone()[0]
-            total_alerts = cursor.execute("SELECT COUNT(*) FROM alerts").fetchone()[0]
-            open_alerts = cursor.execute("SELECT COUNT(*) FROM alerts WHERE acknowledged = 0").fetchone()[0]
+            user = get_current_user(conn)
+            is_demo_user = bool(user and (user.get("is_demo") or user.get("id") == "demo-owner-id-01"))
+            if user and user.get("role") == "OWNER" and not is_demo_user:
+                total_files = cursor.execute("SELECT COUNT(*) FROM files WHERE owner_id = ? AND is_deleted = 0 AND is_demo = 0", (user["id"],)).fetchone()[0]
+                total_versions = cursor.execute("SELECT COUNT(*) FROM versions v JOIN files f ON v.file_id = f.id WHERE f.owner_id = ? AND f.is_deleted = 0 AND f.is_demo = 0", (user["id"],)).fetchone()[0]
+                total_audits = cursor.execute("SELECT COUNT(*) FROM audits a JOIN files f ON a.file_id = f.id WHERE f.owner_id = ? AND f.is_demo = 0", (user["id"],)).fetchone()[0]
+                total_alerts = cursor.execute("SELECT COUNT(*) FROM alerts al JOIN files f ON al.file_ref = f.id WHERE f.owner_id = ? AND f.is_demo = 0", (user["id"],)).fetchone()[0]
+                open_alerts = cursor.execute("SELECT COUNT(*) FROM alerts al JOIN files f ON al.file_ref = f.id WHERE f.owner_id = ? AND al.acknowledged = 0 AND f.is_demo = 0", (user["id"],)).fetchone()[0]
+                is_demo = False
+            elif user and user.get("role") == "OWNER" and is_demo_user:
+                total_files = cursor.execute("SELECT COUNT(*) FROM files WHERE owner_id = ? AND is_deleted = 0", (user["id"],)).fetchone()[0]
+                total_versions = cursor.execute("SELECT COUNT(*) FROM versions v JOIN files f ON v.file_id = f.id WHERE f.owner_id = ? AND f.is_deleted = 0", (user["id"],)).fetchone()[0]
+                total_audits = cursor.execute("SELECT COUNT(*) FROM audits a JOIN files f ON a.file_id = f.id WHERE f.owner_id = ?", (user["id"],)).fetchone()[0]
+                total_alerts = cursor.execute("SELECT COUNT(*) FROM alerts al JOIN files f ON al.file_ref = f.id WHERE f.owner_id = ?", (user["id"],)).fetchone()[0]
+                open_alerts = cursor.execute("SELECT COUNT(*) FROM alerts al JOIN files f ON al.file_ref = f.id WHERE f.owner_id = ? AND al.acknowledged = 0", (user["id"],)).fetchone()[0]
+                is_demo = total_files > 0 and cursor.execute("SELECT COUNT(*) FROM files WHERE is_demo = 1").fetchone()[0] > 0
+            else:
+                total_files = cursor.execute("SELECT COUNT(*) FROM files WHERE is_deleted = 0").fetchone()[0]
+                total_versions = cursor.execute("SELECT COUNT(*) FROM versions").fetchone()[0]
+                total_audits = cursor.execute("SELECT COUNT(*) FROM audits").fetchone()[0]
+                total_alerts = cursor.execute("SELECT COUNT(*) FROM alerts").fetchone()[0]
+                open_alerts = cursor.execute("SELECT COUNT(*) FROM alerts WHERE acknowledged = 0").fetchone()[0]
+                is_demo = total_files > 0 and cursor.execute("SELECT COUNT(*) FROM files WHERE is_demo = 1").fetchone()[0] > 0
+
             _, head_hash = get_ledger_head(conn)
-            is_demo = total_files > 0 and cursor.execute("SELECT COUNT(*) FROM files WHERE is_demo = 1").fetchone()[0] > 0
 
             return jsonify({
                 "total_files": total_files,
@@ -1918,7 +2094,19 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         conn = get_db(app.config["DB_PATH"])
         try:
             cursor = conn.cursor()
-            rows = cursor.execute("SELECT * FROM alerts ORDER BY id DESC LIMIT 50").fetchall()
+            user = get_current_user(conn)
+            if user and user.get("role") == "OWNER":
+                rows = cursor.execute(
+                    """
+                    SELECT al.* FROM alerts al
+                    JOIN files f ON al.file_ref = f.id
+                    WHERE f.owner_id = ? AND f.is_demo = 0
+                    ORDER BY al.id DESC LIMIT 50
+                    """,
+                    (user["id"],),
+                ).fetchall()
+            else:
+                rows = cursor.execute("SELECT * FROM alerts ORDER BY id DESC LIMIT 50").fetchall()
             return jsonify([dict(r) for r in rows])
         finally:
             conn.close()
@@ -2111,7 +2299,19 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         conn = get_db(app.config["DB_PATH"])
         try:
             cursor = conn.cursor()
-            rows = cursor.execute("SELECT id, file_id, kind, status, actor_type, trigger, created_at FROM audits ORDER BY id DESC LIMIT 200").fetchall()
+            user = get_current_user(conn)
+            if user and user.get("role") == "OWNER":
+                rows = cursor.execute(
+                    """
+                    SELECT a.id, a.file_id, a.kind, a.status, a.actor_type, a.trigger, a.created_at
+                    FROM audits a JOIN files f ON a.file_id = f.id
+                    WHERE f.owner_id = ? AND f.is_demo = 0
+                    ORDER BY a.id DESC LIMIT 200
+                    """,
+                    (user["id"],),
+                ).fetchall()
+            else:
+                rows = cursor.execute("SELECT id, file_id, kind, status, actor_type, trigger, created_at FROM audits ORDER BY id DESC LIMIT 200").fetchall()
             _, head_hash = get_ledger_head(conn)
             si = io.StringIO()
             cw = csv.writer(si)
@@ -2129,7 +2329,19 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         conn = get_db(app.config["DB_PATH"])
         try:
             cursor = conn.cursor()
-            rows = cursor.execute("SELECT id, file_id, kind, status, created_at FROM audits ORDER BY id DESC LIMIT 50").fetchall()
+            user = get_current_user(conn)
+            if user and user.get("role") == "OWNER":
+                rows = cursor.execute(
+                    """
+                    SELECT a.id, a.file_id, a.kind, a.status, a.created_at
+                    FROM audits a JOIN files f ON a.file_id = f.id
+                    WHERE f.owner_id = ? AND f.is_demo = 0
+                    ORDER BY a.id DESC LIMIT 50
+                    """,
+                    (user["id"],),
+                ).fetchall()
+            else:
+                rows = cursor.execute("SELECT id, file_id, kind, status, created_at FROM audits ORDER BY id DESC LIMIT 50").fetchall()
             _, head_hash = get_ledger_head(conn)
             pdf_buffer = generate_simple_pdf_report(rows, head_hash)
             return Response(pdf_buffer, mimetype="application/pdf", headers={"Content-Disposition": "attachment;filename=audits_report.pdf"})
