@@ -2353,14 +2353,31 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         conn = get_db(app.config["DB_PATH"])
         try:
             cursor = conn.cursor()
+            user = get_current_user(conn)
             if request.method == "POST":
                 data = request.get_json(silent=True) or {}
                 file_id = data.get("file_id")
+                if user and user.get("role") == "OWNER" and file_id:
+                    frow = cursor.execute("SELECT id FROM files WHERE id = ? AND owner_id = ?", (file_id, user["id"])).fetchone()
+                    if not frow:
+                        return jsonify({"error": "NOT_FOUND", "message": "File not found."}), 404
                 interval_min = int(data.get("interval_minutes", 60))
                 cursor.execute("INSERT INTO schedules (file_id, interval_minutes, last_run, enabled) VALUES (?, ?, NULL, 1)", (file_id, interval_min))
                 conn.commit()
                 return jsonify({"status": "SCHEDULE_CREATED", "id": cursor.lastrowid}), 201
-            rows = cursor.execute("SELECT * FROM schedules ORDER BY id DESC").fetchall()
+
+            if user and user.get("role") == "OWNER":
+                rows = cursor.execute(
+                    """
+                    SELECT s.* FROM schedules s
+                    LEFT JOIN files f ON s.file_id = f.id
+                    WHERE s.file_id IS NULL OR (f.owner_id = ? AND f.is_demo = 0)
+                    ORDER BY s.id DESC
+                    """,
+                    (user["id"],),
+                ).fetchall()
+            else:
+                rows = cursor.execute("SELECT * FROM schedules ORDER BY id DESC").fetchall()
             return jsonify([dict(r) for r in rows])
         finally:
             conn.close()
@@ -2370,7 +2387,14 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
         conn = get_db(app.config["DB_PATH"])
         try:
             cursor = conn.cursor()
-            rows = cursor.execute("SELECT * FROM events ORDER BY id DESC LIMIT 200").fetchall()
+            user = get_current_user(conn)
+            if user and user.get("role") == "OWNER":
+                rows = cursor.execute(
+                    "SELECT * FROM events WHERE actor_id = ? ORDER BY id DESC LIMIT 50",
+                    (user["id"],),
+                ).fetchall()
+            else:
+                rows = cursor.execute("SELECT * FROM events ORDER BY id DESC LIMIT 200").fetchall()
             return jsonify([dict(r) for r in rows])
         finally:
             conn.close()

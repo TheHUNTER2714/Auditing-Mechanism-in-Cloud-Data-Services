@@ -99,7 +99,7 @@ export const DashboardPage: React.FC = () => {
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">
                 Operations & Integrity Telemetry
               </h1>
-              {stats?.is_demo_seeded && (
+              {role === 'ADMIN' && stats?.is_demo_seeded && (
                 <span className="rounded-full bg-cyan-500/15 border border-cyan-400/40 px-2.5 py-0.5 text-xs font-mono font-medium text-cyan-300">
                   Demo Seeded
                 </span>
@@ -316,11 +316,11 @@ export const DashboardPage: React.FC = () => {
                 <span className="text-[10px] text-slate-400">Profile & credentials</span>
               </Link>
               <Link
-                to="/tpa"
+                to="/batch-audit"
                 className="p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 hover:border-indigo-400/40 text-slate-300 hover:text-white transition-all flex flex-col justify-between"
               >
-                <span className="text-indigo-400 font-semibold">TPA Console</span>
-                <span className="text-[10px] text-slate-400">Spot-check verification</span>
+                <span className="text-indigo-400 font-semibold">Manual Audit</span>
+                <span className="text-[10px] text-slate-400">On-demand verification</span>
               </Link>
               <a
                 href={api.getReportPdfUrl()}
@@ -359,7 +359,7 @@ export const DashboardPage: React.FC = () => {
 
             {recentAudits.length === 0 ? (
               <div className="py-8 text-center text-xs font-mono text-slate-500">
-                No audit trials recorded yet. Seed demo data or run an audit from Files Inventory.
+                No audit trials recorded yet. Upload a file and run an audit from Files Inventory.
               </div>
             ) : (
               <div className="overflow-x-auto">
