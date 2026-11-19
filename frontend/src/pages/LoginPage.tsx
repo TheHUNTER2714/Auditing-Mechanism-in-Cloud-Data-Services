@@ -22,7 +22,7 @@ export const LoginPage: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false }) 
       localStorage.setItem('bt032_auth_token', res.token);
       localStorage.setItem('bt032_auth_role', res.role);
       localStorage.setItem('bt032_auth_username', res.username);
-      navigate(isAdmin ? '/dashboard' : '/dashboard');
+      navigate(isAdmin ? '/admin' : '/dashboard');
     } catch (err: any) {
       setError(err.message || 'Invalid credentials or unapproved account');
     } finally {

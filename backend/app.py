@@ -287,7 +287,7 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
                     "message": "Registration successful. Please verify your email using the link sent to your inbox.",
                     "user_id": user_id,
                     "email": email,
-                    "verification_token": raw_token if app.config.get("TESTING") else None,
+                    "verification_token": raw_token if (app.config.get("TESTING") or app.config.get("DEMO_MODE") or os.environ.get("FLASK_ENV") == "development") else None,
                 }
             ), 201
         finally:
@@ -298,7 +298,7 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
     def verify_email_route():
         """Verifies single-use email token and applies Policy Engine rules."""
         data = request.get_json(silent=True) or {}
-        raw_token = data.get("token", "").strip()
+        raw_token = (data.get("token") or "").strip()
         if not raw_token:
             return jsonify({"error": "INVALID_TOKEN", "message": "Verification token is required."}), 400
 
@@ -718,7 +718,7 @@ def create_app(test_config: Dict[str, Any] = None) -> Flask:
                 )
                 cursor.execute(
                     """
-                    INSERT INTO ownership (file_hash, blinded_owner, ledger_seq)
+                    INSERT OR REPLACE INTO ownership (file_hash, blinded_owner, ledger_seq)
                     VALUES (?, ?, ?)
                     """,
                     (computed_file_hash, client_blinded_owner, ledger_entry["seq"]),

@@ -112,12 +112,12 @@ def decode_token(token: str, max_age: int = 86400) -> Optional[Dict[str, Any]]:
 def get_current_user(conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
     """Extract authenticated user from cookie, Authorization header, or query param, and verify token version."""
     token = ""
-    # 1. Cookie
-    if request and request.cookies.get("session_token"):
-        token = request.cookies.get("session_token")
-    # 2. Authorization header
-    elif request and request.headers.get("Authorization", "").startswith("Bearer "):
+    # 1. Authorization header (explicit credential takes precedence)
+    if request and request.headers.get("Authorization", "").startswith("Bearer "):
         token = request.headers.get("Authorization")[7:].strip()
+    # 2. Cookie (ambient credential for browser sessions)
+    elif request and request.cookies.get("session_token"):
+        token = request.cookies.get("session_token")
     # 3. Query param
     elif request and "token" in request.args:
         token = request.args.get("token", "")
@@ -418,7 +418,7 @@ def seed_demo_users_if_needed(conn: sqlite3.Connection) -> None:
     """Seed standard demo accounts when DEMO_MODE is active."""
     demo_accounts = [
         ("demo-owner-id-01", "Demo Owner", "owner@cloud.local", "OwnerPass123!", "OWNER", "ACTIVE"),
-        ("demo-admin-id-03", "Break-Glass Administrator", "admin@system.local", "AdminPass123!", "ADMIN", "ACTIVE"),
+        ("demo-admin-id-03", "Break-Glass Administrator", "admin@system.local", "AdminSecretPass123!", "ADMIN", "ACTIVE"),
     ]
     cursor = conn.cursor()
     now_iso = datetime.now(timezone.utc).isoformat()
